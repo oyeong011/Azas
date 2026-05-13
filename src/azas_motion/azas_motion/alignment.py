@@ -4,6 +4,21 @@ from dataclasses import dataclass
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
 
 
+PICK_PLACE_STATES = (
+    "HOME",
+    "OBSERVE_CUP_POSE",
+    "DETECT_CUP",
+    "COMPUTE_SIDE_GRASP",
+    "PLAN_SIDE_GRASP",
+    "GRIPPER_OPEN",
+    "MOVE_APPROACH",
+    "MOVE_GRASP",
+    "GRIPPER_CLOSE",
+    "LIFT",
+    "DONE",
+)
+
+
 @dataclass(frozen=True)
 class AlignmentConfig:
     outlet_clearance_m: float

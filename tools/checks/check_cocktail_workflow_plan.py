@@ -10,7 +10,7 @@ from azas_task_manager.cocktail_workflow_plan import build_cocktail_steps  # noq
 
 
 def main() -> int:
-    steps = build_cocktail_steps(["yellow", "red"])
+    steps = build_cocktail_steps(["1", "2"])
     phases = [step.phase for step in steps]
     required_order = [
         "VERIFY_RECIPE",

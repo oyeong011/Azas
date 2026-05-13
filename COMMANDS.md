@@ -91,8 +91,6 @@ bash tools/checks/check_real_motion_config.sh
 # 연결 단계 결정 (다음에 무엇을 연결해야 하는지)
 bash tools/checks/check_connection_stage.sh
 
-# 완료율 감사
-bash tools/checks/completion_audit.sh
 ```
 
 ---
@@ -126,9 +124,6 @@ bash tools/checks/check_robot_detection.sh
 ```bash
 # 카메라 기반 드라이런 전체 파이프라인
 bash tools/run/run_robot_dryrun.sh
-
-# 코드 전용 컵 픽 드라이런 (카메라 없이)
-bash tools/run/run_code_only_cup_grasp_dryrun.sh
 
 # 칵테일 드라이런 시퀀스
 ros2 launch azas_bringup cocktail_dryrun.launch.py
@@ -193,15 +188,6 @@ bash tools/run/run_robot_real.sh
 bash tools/run/run_connected_robot_control.sh
 ```
 
-### 7-6. 긴급 정지 · 홀드
-
-```bash
-# 모션 홀드 설정
-bash tools/run/set_motion_hold.sh
-```
-
----
-
 ## 8. 스모크 테스트
 
 하드웨어 없이 실행 가능한 자동화 테스트입니다.
@@ -219,17 +205,8 @@ bash tools/smoke/smoke_fake_hardware_path.sh
 # 칵테일 드라이런 시퀀스 스모크
 bash tools/smoke/smoke_cocktail_dryrun_sequence.sh
 
-# 랜덤 컵 그라스프 후보 스모크
-bash tools/smoke/smoke_random_cup_grasp_candidates.sh
-
 # 실제 모션 진입점 게이트 스모크
 bash tools/smoke/smoke_real_motion_entrypoint_gates.sh
-
-# 로봇 연결 수락 게이트 스모크
-bash tools/smoke/smoke_robot_connection_acceptance_gate.sh
-
-# 텀블러 쉐이크 시퀀스 스모크
-bash tools/smoke/smoke_tumbler_shake_sequence.sh
 
 # 가짜 하드웨어 서비스 수동 시작 (별도 터미널)
 python3 tools/smoke/fake_hardware_services.py
@@ -287,9 +264,6 @@ python3 tools/perception/export_grasp_frame.py \
 ## 11. 전원 차단 복구
 
 ```bash
-# 복구 스크립트
-bash tools/run/recovery_after_poweroff.sh
-
 # 복구 절차 문서
 cat docs/recovery_after_poweroff.md
 ```

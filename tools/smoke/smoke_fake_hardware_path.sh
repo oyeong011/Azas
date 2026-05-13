@@ -150,13 +150,13 @@ for _ in {1..40}; do
     assert_log_contains "${LOG_FILE}" "plan side_pre_grasp: x=0\\.238 y=-0\\.163 z=0\\.135 gripper=preopen width_m=0\\.095 force_n=8\\.0" "hardware-armed path preopens for tapered cup before side approach"
     assert_log_contains "${LOG_FILE}" "plan side_grasp_tumbler: x=0\\.320 y=-0\\.220 z=0\\.135 gripper=close width_m=0\\.064 force_n=12\\.0" "hardware-armed path closes to tapered cup target width"
     assert_log_contains "${LOG_FILE}" "plan lift_tumbler: x=0\\.320 y=-0\\.220 z=0\\.175 gripper=none" "hardware-armed path uses slight lift after side grasp"
-    assert_log_contains "${LOG_FILE}" "plan pre_floor_place: x=0\\.580 y=${EXPECTED_PLAN_Y} z=0\\.145 gripper=none" "hardware-armed path uses slight place approach clearance"
-    assert_log_contains "${LOG_FILE}" "plan floor_place: x=0\\.580 y=${EXPECTED_PLAN_Y} z=0\\.085 gripper=open" "hardware-armed path targets fixed selected-dispenser position"
+    assert_log_contains "${LOG_FILE}" "plan pre_floor_place: x=0\\.500 y=${EXPECTED_PLAN_Y} z=0\\.145 gripper=none" "hardware-armed path uses slight place approach clearance"
+    assert_log_contains "${LOG_FILE}" "plan floor_place: x=0\\.500 y=${EXPECTED_PLAN_Y} z=0\\.085 gripper=open" "hardware-armed path targets fixed selected-dispenser position"
     assert_log_contains "${FAKE_LOG_FILE}" "fake move_line: pos=\\[(np\\.float64\\()?237\\.[0-9]+\\)?, (np\\.float64\\()?-163\\.[0-9]+\\)?, (np\\.float64\\()?135\\.0" "fake Doosan MoveLine received robot-side radial pre-grasp waypoint in mm"
     assert_log_contains "${FAKE_LOG_FILE}" "fake RG2 set_width: command=preopen width_m=0\\.095 force_n=8\\.0" "fake RG2 received tapered preopen width command"
     assert_log_contains "${FAKE_LOG_FILE}" "fake RG2 set_width: command=grasp width_m=0\\.064 force_n=12\\.0" "fake RG2 received tapered grasp width command"
     assert_log_contains "${FAKE_LOG_FILE}" "fake move_line: pos=\\[(np\\.float64\\()?320\\.0\\)?, (np\\.float64\\()?-220\\.0\\)?, (np\\.float64\\()?175\\.0" "fake Doosan MoveLine received slight-lift waypoint in mm"
-    assert_log_contains "${FAKE_LOG_FILE}" "fake move_line: pos=\\[(np\\.float64\\()?580\\.0\\)?, (np\\.float64\\()?${EXPECTED_PLACE_Y}\\)?, (np\\.float64\\()?85\\.0" "fake Doosan MoveLine received fixed floor-place waypoint in mm"
+    assert_log_contains "${FAKE_LOG_FILE}" "fake move_line: pos=\\[(np\\.float64\\()?500\\.0\\)?, (np\\.float64\\()?${EXPECTED_PLACE_Y}\\)?, (np\\.float64\\()?85\\.0" "fake Doosan MoveLine received fixed floor-place waypoint in mm"
     echo "[OK] fake hardware path reached DONE"
     exit 0
   fi

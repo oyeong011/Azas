@@ -1,6 +1,6 @@
 # tools/checks/
 
-비-모션 상태 점검 스크립트 모음입니다.
+비-모션 상태 점검 진입점입니다. 작은 래퍼를 계속 추가하지 말고 대표 점검에 통합하세요.
 
 ## 규칙
 
@@ -22,11 +22,9 @@
 | `check_tf_pipeline.sh` | TF 파이프라인 점검 |
 | `check_observe_pose_planning_only.sh` | 관측 포즈 플래닝 점검 |
 | `check_side_grasp_planning_only.sh` | 사이드 그라스프 플래닝 점검 |
-| `check_grasp_readiness.sh` | 그라스프 준비도 점검 |
 | `check_hand_eye_readiness.sh` | 핸드-아이 캘리브레이션 준비도 |
 | `check_depth_projection_sample.sh` | 깊이 투영 샘플 점검 |
 | `check_detection_stability.sh` | 탐지 안정성 점검 |
-| `check_cup_pick_backends.sh` | 컵 픽 백엔드 점검 |
 | `check_cup_lid_sequence.sh` | 컵·뚜껑 시퀀스 점검 |
 | `check_grasp_adapter_contract.py` | 그라스프 어댑터 계약 점검 |
 | `check_fixed_dispenser_geometry.py` | 디스펜서 고정 기하 점검 |
@@ -37,6 +35,4 @@
 | `check_depth_projection_sample.py` | 깊이 투영 샘플 (Python) |
 | `explain_real_robot_blockers.sh` | 실제 모션 차단 요인 설명 |
 | `field_no_motion_report.sh` → (moved to run/) | 현장 비-모션 보고서 |
-| `real_motion_measurement_report.sh` → (moved to run/) | 실측 보고서 |
 | `robot_connection_acceptance.sh` | 로봇 연결 수락 점검 |
-| `completion_audit.sh` | 완료율 감사 |

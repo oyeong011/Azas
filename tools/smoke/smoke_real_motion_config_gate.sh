@@ -21,6 +21,9 @@ hand_eye:
   child_frame: null
 outlet:
   clearance_m: null
+dispenser_outlets:
+  "1":
+    outlet_pose_xyz_m: null
 EOF
 
 cat >"${PLACEHOLDER_SAFE}" <<'EOF'
@@ -58,9 +61,34 @@ cup_offsets:
 outlet:
   outlet_id: dispenser_outlet
   parent_frame: base_link
-  pose_xyz_m: [0.58, -0.065, 0.392]
+  pose_xyz_m: [0.50, -0.065, 0.392]
   pose_rpy_rad: [0.0, 0.0, 0.0]
   clearance_m: 0.03
+dispenser_outlets:
+  "1":
+    outlet_pose_xyz_m: [0.50, 0.035, 0.392]
+    outlet_pose_rpy_rad: [0.0, 0.0, 0.0]
+    press_pose_xyz_m: [0.50, 0.035, 0.430]
+    press_pose_rpy_rad: [0.0, 0.0, 0.0]
+    clearance_m: 0.03
+  "2":
+    outlet_pose_xyz_m: [0.50, -0.065, 0.392]
+    outlet_pose_rpy_rad: [0.0, 0.0, 0.0]
+    press_pose_xyz_m: [0.50, -0.065, 0.430]
+    press_pose_rpy_rad: [0.0, 0.0, 0.0]
+    clearance_m: 0.03
+  "3":
+    outlet_pose_xyz_m: [0.50, -0.165, 0.392]
+    outlet_pose_rpy_rad: [0.0, 0.0, 0.0]
+    press_pose_xyz_m: [0.50, -0.165, 0.430]
+    press_pose_rpy_rad: [0.0, 0.0, 0.0]
+    clearance_m: 0.03
+  "4":
+    outlet_pose_xyz_m: [0.50, -0.265, 0.392]
+    outlet_pose_rpy_rad: [0.0, 0.0, 0.0]
+    press_pose_xyz_m: [0.50, -0.265, 0.430]
+    press_pose_rpy_rad: [0.0, 0.0, 0.0]
+    clearance_m: 0.03
 EOF
 
 cat >"${VALID_SAFE}" <<'EOF'

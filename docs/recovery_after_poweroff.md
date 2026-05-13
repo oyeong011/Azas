@@ -53,11 +53,7 @@ check:
 /home/ssu/Azas/tools/checks/robot_connection_acceptance.sh
 ```
 
-Run the measured-value blocker report:
-
-```bash
-/home/ssu/Azas/tools/run/real_motion_measurement_report.sh
-```
+Review measured-value blockers in `docs/real_motion_measurement_worksheet.md`.
 
 ## Camera Restart
 
@@ -111,7 +107,6 @@ If that file is missing, stale, or not strict, `tools/run/run_robot_real.sh` ref
 - `tools/checks/verify_control_readiness.sh`
 - `tools/run/field_no_motion_report.sh`
 - `tools/checks/robot_connection_acceptance.sh`
-- `tools/run/real_motion_measurement_report.sh`
 
 ## Safe Stop Point
 

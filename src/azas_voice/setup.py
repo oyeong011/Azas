@@ -23,6 +23,7 @@ setup(
         "console_scripts": [
             "stt_node = azas_voice.stt_node:main",
             "recipe_mapper_node = azas_voice.recipe_mapper_node:main",
+            "llm_recipe_mapper_node = azas_voice.llm_recipe_mapper_node:main",
         ],
     },
 )

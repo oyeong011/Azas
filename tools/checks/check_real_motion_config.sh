@@ -66,6 +66,36 @@ require_literal() {
   fi
 }
 
+require_dispenser_mapping() {
+  local file="$1"
+  local dispenser_id="$2"
+  local block
+  block="$(awk -v id="\"${dispenser_id}\":" '
+    $0 ~ "^[[:space:]]*" id "[[:space:]]*$" { capture=1; print; next }
+    capture && $0 ~ /^[[:space:]]*"[^"]+":[[:space:]]*$/ { exit }
+    capture { print }
+  ' "${file}")"
+
+  if [[ -z "${block}" ]]; then
+    fail "dispenser ${dispenser_id} calibration block missing"
+    return
+  fi
+
+  local missing=0
+  for key in outlet_pose_xyz_m outlet_pose_rpy_rad press_pose_xyz_m press_pose_rpy_rad clearance_m; do
+    if grep -Eq "^[[:space:]]*${key}:[[:space:]]*(\\[[^]]+\\]|[0-9])" <<<"${block}"; then
+      :
+    else
+      missing=1
+      fail "dispenser ${dispenser_id} ${key} is not measured"
+    fi
+  done
+
+  if [[ "${missing}" -eq 0 ]]; then
+    pass "dispenser ${dispenser_id} outlet/press pose mapping is measured"
+  fi
+}
+
 numeric_value() {
   local file="$1"
   local key="$2"
@@ -112,6 +142,9 @@ if [[ -s "${CALIBRATION_FILE}" ]]; then
   require_literal "${CALIBRATION_FILE}" '^[[:space:]]*base_frame:[[:space:]]*base_link([[:space:]]*(#.*)?)?$' "base frame is explicit"
   require_literal "${CALIBRATION_FILE}" '^[[:space:]]*parent_frame:[[:space:]]*base_link([[:space:]]*(#.*)?)?$' "hand-eye parent frame is explicit"
   require_literal "${CALIBRATION_FILE}" '^[[:space:]]*clearance_m:[[:space:]]*[0-9]' "outlet clearance is numeric"
+  for dispenser_id in 1 2 3 4; do
+    require_dispenser_mapping "${CALIBRATION_FILE}" "${dispenser_id}"
+  done
 fi
 
 if [[ -s "${SAFETY_FILE}" ]]; then

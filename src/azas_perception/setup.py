@@ -18,7 +18,6 @@ setup(
     license="MIT",
     entry_points={
         "console_scripts": [
-            "tumbler_detector_node = azas_perception.tumbler_detector_node:main",
             "yolo_tumbler_detector_node = azas_perception.yolo_tumbler_detector_node:main",
             "cup_detection_pose_bridge_node = azas_perception.cup_detection_pose_bridge_node:main",
             "gpd_grasp_adapter_node = azas_perception.gpd_grasp_adapter_node:main",

@@ -3,6 +3,7 @@ import math
 
 import rclpy
 from azas_motion.alignment import (
+    PICK_PLACE_STATES,
     ObservePoseConfig,
     SideGraspConfig,
     compute_observe_pose,
@@ -11,21 +12,6 @@ from azas_motion.alignment import (
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
-
-
-PDF_PICK_PLACE_STATES = (
-    "HOME",
-    "OBSERVE_CUP_POSE",
-    "DETECT_CUP",
-    "COMPUTE_SIDE_GRASP",
-    "PLAN_SIDE_GRASP",
-    "GRIPPER_OPEN",
-    "MOVE_APPROACH",
-    "MOVE_GRASP",
-    "GRIPPER_CLOSE",
-    "LIFT",
-    "DONE",
-)
 
 
 class AlignmentExecutorNode(Node):
@@ -78,7 +64,7 @@ class AlignmentExecutorNode(Node):
         self.get_logger().warn(
             "AlignmentExecutorNode is planning-only by default. It does not command "
             "Doosan motion, MoveIt execution, or RG2 hardware. Required sequence: "
-            + " -> ".join(PDF_PICK_PLACE_STATES)
+            + " -> ".join(PICK_PLACE_STATES)
         )
         self.create_timer(1.0, self._report_planning_only_readiness)
 

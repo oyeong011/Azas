@@ -18,6 +18,11 @@ def generate_launch_description():
         ),
         launch_arguments={
             "use_live_stt": LaunchConfiguration("use_live_stt"),
+            "use_llm": LaunchConfiguration("use_llm"),
+            "enable_llm": LaunchConfiguration("enable_llm"),
+            "llm_model": LaunchConfiguration("llm_model"),
+            "llm_base_url": LaunchConfiguration("llm_base_url"),
+            "llm_api_key_env": LaunchConfiguration("llm_api_key_env"),
             "stt_topic": LaunchConfiguration("stt_topic"),
         }.items(),
         condition=IfCondition(run_voice),
@@ -42,6 +47,11 @@ def generate_launch_description():
         [
             DeclareLaunchArgument("run_voice", default_value="true"),
             DeclareLaunchArgument("use_live_stt", default_value="false"),
+            DeclareLaunchArgument("use_llm", default_value="false"),
+            DeclareLaunchArgument("enable_llm", default_value="false"),
+            DeclareLaunchArgument("llm_model", default_value="gpt-4o-mini"),
+            DeclareLaunchArgument("llm_base_url", default_value="https://api.openai.com/v1"),
+            DeclareLaunchArgument("llm_api_key_env", default_value="OPENAI_API_KEY"),
             DeclareLaunchArgument("stt_topic", default_value="/stt_result"),
             DeclareLaunchArgument("run_yolo", default_value="true"),
             DeclareLaunchArgument("model_path", default_value="/home/ssu/Downloads/best.pt"),

@@ -4,6 +4,7 @@ import rclpy
 from azas_interfaces.action import PickAndAlign
 from azas_interfaces.msg import CupDetection
 from azas_motion.alignment import (
+    PICK_PLACE_STATES,
     ObservePoseConfig,
     SideGraspConfig,
     compute_observe_pose,
@@ -16,21 +17,6 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_srvs.srv import Trigger
-
-
-PDF_PICK_PLACE_STATES = (
-    "HOME",
-    "OBSERVE_CUP_POSE",
-    "DETECT_CUP",
-    "COMPUTE_SIDE_GRASP",
-    "PLAN_SIDE_GRASP",
-    "GRIPPER_OPEN",
-    "MOVE_APPROACH",
-    "MOVE_GRASP",
-    "GRIPPER_CLOSE",
-    "LIFT",
-    "DONE",
-)
 
 
 class PickAndAlignActionServer(Node):
@@ -125,7 +111,7 @@ class PickAndAlignActionServer(Node):
 
     def _execute_skeleton(self, goal_handle):
         feedback = PickAndAlign.Feedback()
-        for state in PDF_PICK_PLACE_STATES:
+        for state in PICK_PLACE_STATES:
             feedback.state = state
             feedback.detail = "skeleton state; subsystem execution pending"
             goal_handle.publish_feedback(feedback)

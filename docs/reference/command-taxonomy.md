@@ -50,7 +50,6 @@
 | 후보 | 이유 |
 |------|------|
 | `tools/run/field_no_motion_report.sh` | 보고서 생성 성격이 강함 |
-| `tools/run/real_motion_measurement_report.sh` | 보고서 생성 성격이 강함 |
 | `tools/run/run_connected_robot_control.sh` | 단일 실행보다 오케스트레이션 성격이 강함 |
-| `tools/checks/check_depth_projection_sample.py/.sh` | shell wrapper와 Python core 관계를 명확히 할 수 있음 |
-| `tools/checks/check_detection_stability.py/.sh` | shell wrapper와 Python core 관계를 명확히 할 수 있음 |
+| `tools/checks/check_depth_projection_sample.sh` | shell wrapper와 Python core 관계를 명확히 할 수 있음 |
+| `tools/checks/check_detection_stability.sh` | shell wrapper와 Python core 관계를 명확히 할 수 있음 |

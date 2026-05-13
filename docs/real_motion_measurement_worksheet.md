@@ -19,6 +19,11 @@ Do not guess these values. Fill `calibration.yaml` and `safety.yaml` only from r
 | `outlet.pose_xyz_m` | `calibration.yaml` | Teaching/calibration of fixed dispenser outlet | Base-frame outlet center. |
 | `outlet.pose_rpy_rad` | `calibration.yaml` | Teaching/calibration of outlet frame | Use a documented orientation convention. |
 | `outlet.clearance_m` | `calibration.yaml` | Measured rim/outlet clearance | Must be numeric and positive. |
+| `dispenser_outlets."1".."4".outlet_pose_xyz_m` | `calibration.yaml` | Teaching/calibration per dispenser number | Base-frame outlet center for each fixed dispenser ID selected by STT/LLM. |
+| `dispenser_outlets."1".."4".outlet_pose_rpy_rad` | `calibration.yaml` | Teaching/calibration per dispenser number | Orientation for aligning the held cup under each outlet. |
+| `dispenser_outlets."1".."4".press_pose_xyz_m` | `calibration.yaml` | Teaching/calibration per dispenser number | Base-frame press/actuation pose for each fixed dispenser ID. |
+| `dispenser_outlets."1".."4".press_pose_rpy_rad` | `calibration.yaml` | Teaching/calibration per dispenser number | Orientation for the dispenser press primitive. |
+| `dispenser_outlets."1".."4".clearance_m` | `calibration.yaml` | Measured rim/outlet clearance per dispenser | Must be numeric and positive. |
 | `motion.workspace_bounds_m` | `src/azas_bringup/config/safety.yaml` | Measured workcell bounds | Include only reachable safe robot cell volume. |
 | `motion.min_z_m` | `safety.yaml` | Table/collision clearance measurement | Lower Z limit for planning. |
 | `gripper.default_width_m` | `safety.yaml` | RG2 command/feedback units check | Confirm width unit conversion. |

@@ -134,7 +134,8 @@ Scope:
 
 Acceptance:
 
-- each dispenser has calibrated press pose and outlet pose,
+- each fixed dispenser ID has calibrated `dispenser_outlets.<id>.outlet_pose_*`
+  and `dispenser_outlets.<id>.press_pose_*`,
 - press action has timeout and failure behavior,
 - liquid falls into cup in dry-run/manual supervised test.
 
@@ -148,8 +149,9 @@ Code-prepared state:
   lid_close_retreat`.
 - The default press point is outlet XYZ plus `press_x_extension=0.08m`,
   giving a more extended arm posture for dispenser pressing.
-- Real execution remains blocked until dispenser `outlet_pose` and `press_pose`
-  are measured and the strict live gate passes.
+- Real execution remains blocked until every selected dispenser ID resolves to
+  measured outlet and press poses in `calibration.yaml`, and the strict live
+  gate passes.
 
 ### Milestone E: Lid, Shake, Open, Pour
 
@@ -172,8 +174,8 @@ Code-prepared state:
 - Default safe shake center is `x=0.30, y=-0.28, z=0.32m`, away from the
   current fixed dispenser row, with `min_shake_z=0.25m` and
   `dispenser_keepout_radius=0.20m`.
-- `smoke_tumbler_shake_sequence.sh` verifies both the safe fake-service path
-  and fail-closed behavior when the shake center overlaps a dispenser.
+- Tumbler shake remains covered by the cocktail dry-run plan and should move
+  into Python-level tests instead of adding another shell wrapper.
 
 ## Current Recommendation
 

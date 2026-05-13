@@ -8,8 +8,8 @@ def generate_launch_description():
         [
             Node(
                 package="azas_perception",
-                executable="tumbler_detector_node",
-                name="tumbler_detector_node",
+                executable="yolo_tumbler_detector_node",
+                name="yolo_tumbler_detector_node",
                 output="screen",
             ),
             Node(

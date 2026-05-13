@@ -12,30 +12,30 @@ SCENE_LAUNCH = ROOT / "launch" / "tumbler_dispenser_scene.launch.py"
 FLOOR_LAUNCH = ROOT / "launch" / "tumbler_floor_place.launch.py"
 
 EXPECTED_BOTTLES = [
-    0.58,
+    0.50,
     0.18,
     0.1375,
-    0.58,
+    0.50,
     0.08,
     0.1375,
-    0.58,
+    0.50,
     -0.02,
     0.1375,
-    0.58,
+    0.50,
     -0.12,
     0.1375,
 ]
 EXPECTED_OUTLETS = [
-    0.58,
+    0.50,
     0.035,
     0.392,
-    0.58,
+    0.50,
     -0.065,
     0.392,
-    0.58,
+    0.50,
     -0.165,
     0.392,
-    0.58,
+    0.50,
     -0.265,
     0.392,
 ]
@@ -96,7 +96,7 @@ def main() -> int:
     failures += check_equal("floor bottle positions", floor["dispenser_bottle_positions"], EXPECTED_BOTTLES)
     failures += check_equal("scene outlet positions", scene["dispenser_outlet_positions"], EXPECTED_OUTLETS)
     failures += check_equal("floor outlet positions", floor["dispenser_outlet_positions"], EXPECTED_OUTLETS)
-    failures += check_equal("scene selected outlet shorthand", scene["dispenser_outlet_position"], [0.58, -0.065, 0.392])
+    failures += check_equal("scene selected outlet shorthand", scene["dispenser_outlet_position"], [0.50, -0.065, 0.392])
     failures += check_equal("scene side grasp height", scene["grasp_height"], 0.085)
     failures += check_equal("scene side grasp approach offset", scene["side_grasp_approach_offset"], 0.10)
     failures += check_equal("scene lift height", scene["lift_height"], 0.04)

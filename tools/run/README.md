@@ -1,6 +1,6 @@
 # tools/run/
 
-현장 실행 스크립트 모음입니다. 드라이런, 실제 모션, 복구 절차를 포함합니다.
+현장 실행 진입점입니다. 새 스크립트를 늘리기보다 아래 대표 명령에 옵션을 추가하세요.
 
 ## 규칙
 
@@ -26,10 +26,6 @@
 | `run_doosan_real_no_motion_m0609.sh` | 실제 Doosan 비-모션 연결 |
 | `run_robot_dryrun.sh` | 카메라 기반 드라이런 |
 | `run_robot_real.sh` | 실제 로봇 모션 실행 |
-| `run_code_only_cup_grasp_dryrun.sh` | 코드 전용 컵 픽 드라이런 |
 | `run_connected_robot_control.sh` | 연결 로봇 제어 통합 |
 | `run_supervised_observe_pose.py` | 감독 하에 관측 포즈 이동 |
 | `field_no_motion_report.sh` | 현장 비-모션 종합 보고서 |
-| `real_motion_measurement_report.sh` | 실측 캘리브레이션 보고서 |
-| `recovery_after_poweroff.sh` | 전원 차단 후 복구 |
-| `set_motion_hold.sh` | 모션 홀드 설정 |
