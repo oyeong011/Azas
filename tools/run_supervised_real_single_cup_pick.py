@@ -517,15 +517,20 @@ class MoveItExecuteTrajectoryBackend:
                 pass
 
     def _select_action_backend(self) -> None:
-        actions = dict(self.node.get_action_names_and_types())
-        execute_types = actions.get(self.args.execute_action_name, [])
-        move_types = actions.get(self.args.move_action_name, [])
-        if "moveit_msgs/action/ExecuteTrajectory" in execute_types:
+        action_text = command_output(["ros2", "action", "list", "-t"], timeout=5.0)
+        execute_available = (
+            f"{self.args.execute_action_name} [moveit_msgs/action/ExecuteTrajectory]"
+            in action_text
+        )
+        move_available = (
+            f"{self.args.move_action_name} [moveit_msgs/action/MoveGroup]" in action_text
+        )
+        if execute_available:
             self.action_name = self.args.execute_action_name
             self.action_type = "moveit_msgs/action/ExecuteTrajectory"
             print(f"[OK] using action backend: {self.action_name} [{self.action_type}]")
             return
-        if "moveit_msgs/action/MoveGroup" in move_types:
+        if move_available:
             raise RuntimeError(
                 f"{self.args.move_action_name} is available, but this script only executes "
                 "already successful plan_result.trajectory via ExecuteTrajectory"
@@ -543,6 +548,7 @@ class MoveItExecuteTrajectoryBackend:
             config_dict=moveit_config_dict("m0609", "dsr_moveit_config_m0609"),
             provide_planning_service=False,
         )
+        time.sleep(2.0)
         self.planning_component = self.moveit_py.get_planning_component(
             self.args.planning_group
         )
@@ -580,6 +586,8 @@ class MoveItExecuteTrajectoryBackend:
         trajectory = getattr(plan_result, "trajectory", None)
         if trajectory is None:
             raise RuntimeError(f"{label} plan_result has no trajectory; execution prohibited")
+        if hasattr(trajectory, "get_robot_trajectory_msg"):
+            trajectory = trajectory.get_robot_trajectory_msg()
         print(f"[OK] {label} plan succeeded; trajectory ready for ExecuteTrajectory")
         return trajectory
 
