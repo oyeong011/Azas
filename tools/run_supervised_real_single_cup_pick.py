@@ -3,14 +3,15 @@
 
 This script prepares exactly one cup side pick from a live or manual base_link
 cup reference pose. It refuses real motion unless the explicit real-motion gates
-are present, and this batch still stops before execution because Azas does not
-yet contain an accepted MoveIt execution backend.
+are present. When enabled, it plans approach/grasp/lift with MoveItPy and sends
+only successful plan trajectories to MoveIt ExecuteTrajectory.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -19,9 +20,16 @@ from typing import Any
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+TOOLS_DIR = ROOT_DIR / "tools"
+SRC_MOTION = ROOT_DIR / "src" / "azas_motion"
+for path in (TOOLS_DIR, SRC_MOTION):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
 CONFIRM_PHRASE = "I_UNDERSTAND_THIS_WILL_MOVE_THE_ROBOT"
 DEFAULT_SWEEP_JSON = Path("/tmp/azas_side_grasp_candidate_sweep.json")
 DEFAULT_SWEEP_CSV = Path("/tmp/azas_side_grasp_candidate_sweep.csv")
+MOVEIT_SUCCESS = 1
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,6 +52,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--accel-scale", type=float, default=0.03)
     parser.add_argument("--gripper-open-service", default="/jarvis/rg2/open")
     parser.add_argument("--gripper-close-service", default="/jarvis/rg2/close")
+    parser.add_argument("--execute-action-name", default="/execute_trajectory")
+    parser.add_argument("--move-action-name", default="/move_action")
+    parser.add_argument("--action-timeout-sec", type=float, default=60.0)
     parser.add_argument("--sweep-json", type=Path, default=DEFAULT_SWEEP_JSON)
     parser.add_argument("--sweep-csv", type=Path, default=DEFAULT_SWEEP_CSV)
     parser.add_argument("--skip-sweep", action="store_true")
@@ -80,7 +91,7 @@ def main() -> int:
         print("No real robot motion or RG2 command was sent.")
         return 0
 
-    return execute_one_pick_stub(args)
+    return execute_one_pick(args, best)
 
 
 def str_to_bool(value: str | bool) -> bool:
@@ -123,13 +134,15 @@ def validate_speed_scales(args: argparse.Namespace) -> bool:
 
 
 def check_services(args: argparse.Namespace, strict: bool) -> bool:
-    print_stage("CHECK_SERVICES", "checking RG2 and MoveIt planning services")
+    print_stage("CHECK_SERVICES", "checking RG2 services, MoveIt planning, and execution actions")
     checks = [
         ("gripper open", args.gripper_open_service),
         ("gripper close", args.gripper_close_service),
         ("MoveIt plan", "/plan_kinematic_path"),
     ]
     service_list = command_output(["ros2", "service", "list"], timeout=5.0)
+    if strict and not service_list:
+        service_list = "\n".join(rclpy_graph_names("services"))
     ok = True
     for label, name in checks:
         found = name in service_list
@@ -137,10 +150,61 @@ def check_services(args: argparse.Namespace, strict: bool) -> bool:
         print(f"[{status}] {label}: {name}")
         ok = ok and (found or not strict)
     move_group_nodes = command_output(["ros2", "node", "list", "--no-daemon"], timeout=5.0)
+    if strict and not move_group_nodes:
+        move_group_nodes = "\n".join(rclpy_graph_names("nodes"))
     move_group_found = "/move_group" in move_group_nodes
     status = "OK" if move_group_found else ("FAIL" if strict else "WARN")
     print(f"[{status}] move_group node: /move_group")
-    return ok and (move_group_found or not strict)
+    action_text = command_output(["ros2", "action", "list", "-t"], timeout=5.0)
+    if strict and not action_text:
+        action_text = "\n".join(rclpy_action_names_and_types())
+    execute_action_ok = f"{args.execute_action_name} [moveit_msgs/action/ExecuteTrajectory]" in action_text
+    move_action_ok = f"{args.move_action_name} [moveit_msgs/action/MoveGroup]" in action_text
+    execute_status = "OK" if execute_action_ok else ("FAIL" if strict else "WARN")
+    move_status = "OK" if move_action_ok else "INFO"
+    print(f"[{execute_status}] execute action: {args.execute_action_name} [moveit_msgs/action/ExecuteTrajectory]")
+    print(f"[{move_status}] move action: {args.move_action_name} [moveit_msgs/action/MoveGroup]")
+    return ok and (move_group_found or not strict) and (execute_action_ok or not strict)
+
+
+def rclpy_graph_names(kind: str) -> list[str]:
+    import rclpy
+
+    initialized_here = False
+    if not rclpy.ok():
+        rclpy.init(args=None)
+        initialized_here = True
+    node = rclpy.create_node("azas_single_pick_graph_check")
+    try:
+        if kind == "services":
+            return [name for name, _types in node.get_service_names_and_types()]
+        if kind == "nodes":
+            return list(node.get_node_names())
+        raise ValueError(f"unsupported graph kind: {kind}")
+    finally:
+        node.destroy_node()
+        if initialized_here and rclpy.ok():
+            rclpy.shutdown()
+
+
+def rclpy_action_names_and_types() -> list[str]:
+    import rclpy
+
+    initialized_here = False
+    if not rclpy.ok():
+        rclpy.init(args=None)
+        initialized_here = True
+    node = rclpy.create_node("azas_single_pick_action_check")
+    try:
+        return [
+            f"{name} [{type_name}]"
+            for name, type_names in node.get_action_names_and_types()
+            for type_name in type_names
+        ]
+    finally:
+        node.destroy_node()
+        if initialized_here and rclpy.ok():
+            rclpy.shutdown()
 
 
 def read_cup_pose(args: argparse.Namespace) -> dict[str, float] | None:
@@ -319,21 +383,172 @@ def print_confirm_summary(args: argparse.Namespace, cup_pose: dict[str, float], 
     print(f"cup_pose={cup_pose}")
     print(f"gripper_open={args.gripper_open_service}")
     print(f"gripper_close={args.gripper_close_service}")
-    print(f"motion_backend=missing")
+    print(f"motion_backend={args.execute_action_name} [moveit_msgs/action/ExecuteTrajectory]")
     print(f"speed_scale={args.velocity_scale:.3f} accel_scale={args.accel_scale:.3f}")
     print(f"confirm_required={CONFIRM_PHRASE}")
     if args.enable_real_motion and not best.get("all_success"):
         print("[FAIL] selected candidate is not all_success; execution prohibited")
 
 
-def execute_one_pick_stub(args: argparse.Namespace) -> int:
-    print_stage("EXECUTE_ONE_PICK", "blocked before GRIPPER_OPEN")
-    print("Current repo has MoveItPy plan() only; no accepted execution backend exists.")
-    print("Required backend: execute the exact planned trajectory via MoveIt ExecuteTrajectory")
-    print("or MoveGroup action after proving it consumes the successful plan result.")
-    print("No gripper open/close was called because motion backend is missing.")
-    print("No real robot motion or RG2 command was sent.")
-    return 1
+def execute_one_pick(args: argparse.Namespace, candidate: dict[str, Any]) -> int:
+    print_stage("EXECUTE_ONE_PICK", "one-shot ExecuteTrajectory backend")
+    if not candidate.get("all_success"):
+        print("[FAIL] selected candidate is not all_success; execution prohibited")
+        return 1
+    try:
+        executor = MoveItExecuteTrajectoryBackend(args)
+        executor.run(candidate)
+    except Exception as exc:
+        print(f"[FAIL] execution stopped: {exc}")
+        return 1
+    print_stage("DONE", "supervised one-shot side pick command sequence completed")
+    return 0
+
+
+class MoveItExecuteTrajectoryBackend:
+    def __init__(self, args: argparse.Namespace) -> None:
+        self.args = args
+        os.environ.setdefault("ROS_LOG_DIR", "/tmp/ros2_logs")
+        Path(os.environ["ROS_LOG_DIR"]).mkdir(parents=True, exist_ok=True)
+        import rclpy
+        from rclpy.node import Node
+
+        if not rclpy.ok():
+            rclpy.init(args=None)
+        self.rclpy = rclpy
+        self.node: Node = rclpy.create_node("azas_supervised_real_single_cup_pick")
+        self._select_action_backend()
+        self.moveit_py = None
+        self.planning_component = None
+
+    def run(self, candidate: dict[str, Any]) -> None:
+        try:
+            self._init_moveit()
+            self._call_gripper(self.args.gripper_open_service, "GRIPPER_OPEN")
+            for label in ("approach", "grasp"):
+                trajectory = self._plan_pose(label, candidate[f"{label}_pose"])
+                self._execute_trajectory(label, trajectory)
+            self._call_gripper(self.args.gripper_close_service, "GRIPPER_CLOSE")
+            trajectory = self._plan_pose("lift", candidate["lift_pose"])
+            self._execute_trajectory("lift", trajectory)
+        finally:
+            self.node.destroy_node()
+            try:
+                if self.rclpy.ok():
+                    self.rclpy.shutdown()
+            except Exception:
+                pass
+
+    def _select_action_backend(self) -> None:
+        actions = dict(self.node.get_action_names_and_types())
+        execute_types = actions.get(self.args.execute_action_name, [])
+        move_types = actions.get(self.args.move_action_name, [])
+        if "moveit_msgs/action/ExecuteTrajectory" in execute_types:
+            self.action_name = self.args.execute_action_name
+            self.action_type = "moveit_msgs/action/ExecuteTrajectory"
+            print(f"[OK] using action backend: {self.action_name} [{self.action_type}]")
+            return
+        if "moveit_msgs/action/MoveGroup" in move_types:
+            raise RuntimeError(
+                f"{self.args.move_action_name} is available, but this script only executes "
+                "already successful plan_result.trajectory via ExecuteTrajectory"
+            )
+        raise RuntimeError(
+            f"{self.args.execute_action_name} [moveit_msgs/action/ExecuteTrajectory] not available"
+        )
+
+    def _init_moveit(self) -> None:
+        from moveit.planning import MoveItPy
+        from sweep_side_grasp_planning_candidates import moveit_config_dict
+
+        self.moveit_py = MoveItPy(
+            node_name="azas_supervised_single_pick_moveit",
+            config_dict=moveit_config_dict("m0609", "dsr_moveit_config_m0609"),
+            provide_planning_service=False,
+        )
+        self.planning_component = self.moveit_py.get_planning_component(
+            self.args.planning_group
+        )
+
+    def _plan_pose(self, label: str, pose_dict_msg: dict[str, Any]):
+        from geometry_msgs.msg import PoseStamped
+        from moveit.planning import PlanRequestParameters
+
+        print_stage(f"PLAN_{label.upper()}", "MoveItPy plan() before ExecuteTrajectory")
+        pose_msg = PoseStamped()
+        pose_msg.header.frame_id = self.args.base_frame
+        pose_msg.pose.position.x = float(pose_dict_msg["position"]["x"])
+        pose_msg.pose.position.y = float(pose_dict_msg["position"]["y"])
+        pose_msg.pose.position.z = float(pose_dict_msg["position"]["z"])
+        pose_msg.pose.orientation.x = float(pose_dict_msg["orientation"]["x"])
+        pose_msg.pose.orientation.y = float(pose_dict_msg["orientation"]["y"])
+        pose_msg.pose.orientation.z = float(pose_dict_msg["orientation"]["z"])
+        pose_msg.pose.orientation.w = float(pose_dict_msg["orientation"]["w"])
+
+        params = PlanRequestParameters(self.moveit_py)
+        params.planning_time = float(self.args.planning_timeout_sec)
+        params.planning_pipeline = "ompl"
+        params.planner_id = "RRTConnectkConfigDefault"
+        params.planning_attempts = 1
+        params.max_velocity_scaling_factor = float(self.args.velocity_scale)
+        params.max_acceleration_scaling_factor = float(self.args.accel_scale)
+        self.planning_component.set_start_state_to_current_state()
+        self.planning_component.set_goal_state(
+            pose_stamped_msg=pose_msg,
+            pose_link=self.args.ee_link,
+        )
+        plan_result = self.planning_component.plan(params)
+        if not plan_result:
+            raise RuntimeError(f"{label} planning failed; execution prohibited")
+        trajectory = getattr(plan_result, "trajectory", None)
+        if trajectory is None:
+            raise RuntimeError(f"{label} plan_result has no trajectory; execution prohibited")
+        print(f"[OK] {label} plan succeeded; trajectory ready for ExecuteTrajectory")
+        return trajectory
+
+    def _execute_trajectory(self, label: str, trajectory) -> None:
+        from moveit_msgs.action import ExecuteTrajectory
+        from rclpy.action import ActionClient
+
+        print_stage(f"EXECUTE_{label.upper()}", self.action_name)
+        client = ActionClient(self.node, ExecuteTrajectory, self.action_name)
+        if not client.wait_for_server(timeout_sec=5.0):
+            raise RuntimeError(f"ExecuteTrajectory action unavailable: {self.action_name}")
+        goal = ExecuteTrajectory.Goal()
+        goal.trajectory = trajectory
+        send_future = client.send_goal_async(goal)
+        self.rclpy.spin_until_future_complete(self.node, send_future, timeout_sec=5.0)
+        goal_handle = send_future.result()
+        if goal_handle is None or not goal_handle.accepted:
+            raise RuntimeError(f"{label} ExecuteTrajectory goal rejected")
+        result_future = goal_handle.get_result_async()
+        self.rclpy.spin_until_future_complete(
+            self.node,
+            result_future,
+            timeout_sec=float(self.args.action_timeout_sec),
+        )
+        result_wrapper = result_future.result()
+        if result_wrapper is None:
+            raise RuntimeError(f"{label} ExecuteTrajectory timed out")
+        error_code = getattr(result_wrapper.result.error_code, "val", None)
+        if error_code != MOVEIT_SUCCESS:
+            raise RuntimeError(f"{label} ExecuteTrajectory failed with error_code={error_code}")
+        print(f"[OK] {label} ExecuteTrajectory succeeded")
+
+    def _call_gripper(self, service_name: str, label: str) -> None:
+        from std_srvs.srv import Trigger
+
+        print_stage(label, service_name)
+        client = self.node.create_client(Trigger, service_name)
+        if not client.wait_for_service(timeout_sec=5.0):
+            raise RuntimeError(f"gripper service unavailable: {service_name}")
+        future = client.call_async(Trigger.Request())
+        self.rclpy.spin_until_future_complete(self.node, future, timeout_sec=10.0)
+        response = future.result()
+        if response is None or not response.success:
+            message = getattr(response, "message", "<no response>")
+            raise RuntimeError(f"gripper service failed: {service_name}: {message}")
+        print(f"[OK] {label}: {response.message}")
 
 
 def dry_run_only(args: argparse.Namespace) -> bool:
