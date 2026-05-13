@@ -1,0 +1,21 @@
+# Optional Python runtime dependencies for Azas perception and voice paths.
+#
+# Install into the same Python environment used by ROS 2 Humble.
+# Review licenses before product use. In particular, Ultralytics is AGPL-3.0
+# unless an enterprise license is used.
+
+# Fast MVP tumbler detector path: azas_perception/yolo_tumbler_detector_node.py
+ultralytics
+
+# Open-vocabulary mask fallback: azas_perception/grounded_sam2_tumbler_mask_node.py
+# Upstream install guidance currently uses a Git URL, not a stable PyPI-only path.
+git+https://github.com/luca-medeiros/lang-segment-anything.git
+
+# Lecture-compatible STT path: azas_voice/stt_node.py
+SpeechRecognition
+PyAudio
+
+# Offline/local STT candidates for later replacement of Google Web Speech.
+vosk
+openai-whisper
+

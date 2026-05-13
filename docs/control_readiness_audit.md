@@ -1,0 +1,79 @@
+# Control Readiness Audit
+
+Objective: find and integrate open-source components enough for the Azas cocktail robot to reach a robot-control-ready state.
+
+Status on 2026-05-12: **not complete for real hardware**, but the non-hardware OSS control path and full cocktail workflow plan are wired and smoke-tested.
+
+Latest verifier evidence: `/home/ssu/Azas/tools/verify_control_readiness.sh` passed at `2026-05-12T12:56:22+09:00`, including OSS stack checks, non-hardware control smoke, fake hardware-armed smoke, cocktail dry-run sequence smoke, full cocktail workflow plan gate, real-motion entrypoint fail-closed smoke, robot-connection acceptance fail-closed smoke, config-gate smoke, and Doosan virtual launch argument resolution.
+
+Latest strict completion audit: `/home/ssu/Azas/tools/completion_audit.sh` failed at `2026-05-11T15:24:10+09:00` with `missing=8`, which is the expected current result because real hardware evidence is not complete.
+
+Power-off recovery: `docs/recovery_after_poweroff.md`, `docs/current_handoff_2026-05-11.md`, and `tools/recovery_after_poweroff.sh`.
+
+## Prompt-To-Artifact Checklist
+
+| Requirement | Artifact / command | Evidence | Status |
+| --- | --- | --- | --- |
+| Open-source candidates selected for the cocktail robot | `wiki/syntheses/Open Source Dependency Candidates.md`, `docs/oss_robot_control_stack.md` | ROS 2 Humble, Doosan `doosan-robot2`, MoveIt 2/MoveItPy, RealSense ROS 2, YOLO, Grounded-SAM/LangSAM, AprilTag/easy_handeye2, SpeechRecognition/Vosk/Whisper mapped to Azas roles | Done |
+| External sources tracked without vendoring | `dependencies/ros2_sources.repos`, `dependencies/experimental_sources.repos`, `dependencies/README.md` | Review workspace flow documented; external source trees explicitly not copied into Azas | Done |
+| Runtime install candidates documented | `dependencies/system_apt_packages.txt`, `dependencies/python_optional_requirements.txt` | ROS/camera/STT system package candidates and optional Python runtime candidates listed | Done |
+| Non-hardware verifier bundled | `tools/verify_control_readiness.sh` | Runs syntax checks, OSS stack availability, control smoke, fake hardware smoke, DSR-inspired cocktail dry-run sequence smoke, full cocktail workflow plan gate, and Doosan launch arg check into `/tmp/azas_control_readiness_report.txt` | Done |
+| Azas core packages build | `source /opt/ros/humble/setup.bash; cd /home/ssu/Azas; colcon build --symlink-install` | 8 packages finished | Done |
+| Azas tests do not fail | `colcon test --event-handlers console_direct+; colcon test-result --verbose` | Summary: 0 tests, 0 errors, 0 failures, 0 skipped | Weak: no failing tests, but coverage is minimal |
+| Doosan/MoveIt stack is locally available | `/home/ssu/Azas/tools/check_oss_stack.sh` | OK for `dsr_bringup2`, `dsr_moveit_config_m0609`, `moveit_py` | Done |
+| RealSense package available | `/home/ssu/Azas/tools/check_oss_stack.sh` | OK for `realsense2_camera` | Done |
+| YOLO MVP runtime available | `/home/ssu/Azas/tools/check_oss_stack.sh` | OK for Ultralytics import and `/home/ssu/Downloads/best.pt` | Done, license review still required |
+| Optional fallback/STT candidates checked | `/home/ssu/Azas/tools/check_oss_stack.sh` | LangSAM, Vosk, Whisper warnings because not installed | Not complete, optional |
+| Launch wiring resolves without hardware | `/home/ssu/Azas/tools/check_oss_stack.sh` | OK for Doosan virtual MoveIt launch, `robot_connection_control.launch.py`, `yolo_to_floor_place.launch.py` | Done |
+| Detection-to-control contract works without hardware | `/home/ssu/Azas/tools/smoke_control_path.sh` | Fake `CupDetection` reaches floor-place `DONE` with `enable_hardware:=false` | Done |
+| Hardware-gated service path works against fakes | `tools/fake_hardware_services.py`, `tools/smoke_fake_hardware_path.sh`, `/home/ssu/ros2_ws/src/Azas/jarvis/tumbler_floor_place_node.py` | Initial smoke exposed a service future deadlock; fixed by running `run_once` outside the timer callback and waiting while the executor remains free. Rebuilt `jarvis`; fake hardware path now reaches `DONE`. | Done |
+| Live hardware field gates scripted | `/home/ssu/Azas/tools/check_live_hardware_gates.sh` | Latest strict run fails safely: missing live camera topics, Doosan MoveLine/MoveJoint services, RG2 services, and measured calibration/safety config. `STRICT=true` writes the only stamp accepted by the real-motion entrypoint, but no stamp is written while failures remain. | Done |
+| Field no-motion report scripted | `/home/ssu/Azas/tools/field_no_motion_report.sh` | Aggregates connection stage, depth projection, optional cup/lid stability, and live hardware gate into `/tmp/azas_field_no_motion_report.txt` without motion or gripper calls | Done |
+| Robot connection acceptance wrapper scripted | `/home/ssu/Azas/tools/robot_connection_acceptance.sh`, `/home/ssu/Azas/tools/smoke_robot_connection_acceptance_gate.sh` | Runs the strict field no-motion report, hand-eye readiness check, and completion audit as one post-connection command without motion or gripper calls. Smoke verifies it fails closed when live evidence is absent. | Done |
+| Cup/lid operator sequence scripted | `/home/ssu/Azas/tools/check_cup_lid_sequence.sh` | Prompts for lid then cup/tumbler-body placement and runs no-motion stability checks on `/azas/cup_detection` | Done, needs live rerun with objects |
+| Hand-eye readiness helper scripted | `/home/ssu/Azas/tools/check_hand_eye_readiness.sh` | Checks camera topics, CameraInfo frame, TF topics, and base-to-camera transform evidence without motion or gripper calls | Done, currently fails until camera/TF are running |
+| Service contract type gates scripted | `/home/ssu/Azas/tools/check_live_hardware_gates.sh`, `/home/ssu/Azas/tools/check_connection_stage.sh` | Gate now checks Doosan `MoveLine`/`MoveJoint` service types and RG2 `Trigger` service types without calling them. Fake service contract check observed `dsr_msgs2/srv/MoveLine`, `dsr_msgs2/srv/MoveJoint`, and `std_srvs/srv/Trigger` when fake services were present. | Done |
+| Real-motion measurement worksheet available | `docs/real_motion_measurement_worksheet.md`, `tools/real_motion_measurement_report.sh` | Lists every measured value required before `calibration.yaml`/`safety.yaml` can pass the real-motion config gate, and writes `/tmp/azas_real_motion_measurement_report.txt` without ROS motion commands | Done |
+| Real-motion entrypoint fails closed | `tools/run_robot_real.sh`, `tools/smoke_real_motion_entrypoint_gates.sh` | `run_robot_real.sh` now re-runs the measured config gate after validating the strict stamp. Smoke verifies refusal for missing stamp, non-strict stamp, and placeholder config. | Done |
+| Real-motion config gate regression tested | `tools/check_real_motion_config.sh`, `tools/smoke_real_motion_config_gate.sh` | Smoke verifies placeholder config is blocked and measured-like temporary fixture config passes, without changing production calibration/safety files. | Done |
+| Power-off recovery documented | `docs/recovery_after_poweroff.md`, `tools/recovery_after_poweroff.sh` | Reboot commands, safe resume checks, current blockers, and no-motion recovery report are available | Done |
+| Completion audit scripted | `tools/completion_audit.sh` | Re-runs non-hardware verifier, requires fresh field-report evidence, executes hand-eye readiness, and intentionally fails while strict live gate, measured config, cup-body stability, hand-eye, RG2, or real robot hardware evidence is missing | Done |
+| Real-motion calibration/safety config gate scripted | `/home/ssu/Azas/tools/check_real_motion_config.sh` | Current placeholder configs fail closed on `null` and `확인 필요`, while preserving velocity/acceleration and failure-behavior checks | Done |
+| Field execution order documented | `docs/field_control_runbook.md`, `tools/run_doosan_virtual_m0609.sh` | Virtual Doosan, Azas dry-run, and live gate terminal sequence documented | Done |
+| Simulation vs hardware connection order documented | `docs/simulation_and_connection_plan.md` | Recommends non-hardware, camera-only, robot/RG2 no-motion, then real-motion stages | Done |
+| Current connection-stage report available | `/home/ssu/Azas/tools/check_connection_stage.sh` | No-motion report maps current ROS graph/config state to next connection step | Done |
+| Project demo source reviewed and pinned | `dependencies/dsr_deeptree_sources.repos`, `docs/dsr_deeptree_integration.md` | `deeptree0819/DSR_DeepTree` pinned at commit `22f5435086037a759e563047f535f2c3c418351e`; reusable Task 1/2/3/4 patterns mapped without vendoring the repo | Done |
+| DSR-inspired cocktail sequence applied | `azas_task_manager/cocktail_workflow_plan.py`, `azas_task_manager/cocktail_dryrun_sequence_node.py`, `azas_bringup/launch/cocktail_dryrun.launch.py`, `tools/smoke_cocktail_dryrun_sequence.sh`, `tools/check_cocktail_workflow_plan.py` | Fake cup/lid detections plus a two-dispenser recipe publish a no-motion workflow with calibration, camera-to-base transform, cup pick, per-dispenser alignment/press, lid placement, shake, open, and pour phases. Hardware-capable phases are marked `strict_live_gate`. | Done |
+| RViz simulation runs without robot | `docs/rviz_simulation_verification_2026-05-11.md`, `ros2 launch jarvis tumbler_dispenser_scene.launch.py selected_dispenser_id:=2 use_rviz:=true` | Scene node and RViz start; target/tumbler/path topics publish; floor-place dry-run consumes simulated pose and reaches `DONE` with `enable_hardware:=false` | Done |
+| Real camera hardware recognized | `docs/camera_connection_verification_2026-05-11.md`, `lsusb`, `v4l2-ctl --list-devices` | Intel RealSense D435i detected on USB and `/dev/video0` through `/dev/video5` | Done |
+| Real camera topics and depth projection verified | `tools/check_depth_projection_sample.sh`, `docs/camera_connection_verification_2026-05-11.md` | RealSense publishes color, aligned depth, CameraInfo; center depth projection passed at `0.3100m` in `camera_color_optical_frame` | Done |
+| Real camera lid detection verified | `/home/ssu/Azas/tools/check_robot_detection.sh`, `/home/ssu/Azas/tools/check_connection_stage.sh`, `docs/camera_connection_verification_2026-05-11.md` | Model classes are `{0: cup, 1: lid}`; repeated fresh samples report `detected:lid` with confidence around `0.972` and `depth_raw=264.0` | Done |
+| Lid detection stability verified | `/home/ssu/Azas/tools/check_detection_stability.sh --expect-class lid` | 140/140 samples were `lid`; confidence `0.972-0.975`; `depth_raw=263.0-265.0` | Done |
+| Real camera cup/tumbler-body detection verified | `/home/ssu/Azas/tools/check_robot_detection.sh`, `/home/ssu/Azas/tools/check_connection_stage.sh` | Not yet sampled with body-only/visible cup condition after lid test | Missing |
+| Full cocktail workflow decomposed | `docs/full_cocktail_workflow_plan.md`, `azas_task_manager/cocktail_workflow_plan.py` | STT, recipe sequencing, cup/lid perception, measured calibration, fixed dispenser placement, dispenser pressing, lid, shaking, opening, and pouring are split into executable no-motion plan phases with explicit hardware gates | Done for offline plan, needs field calibration/execution |
+| Hand-eye/base-camera transform verified | AprilTag/easy_handeye2 workflow | No current measurement evidence | Missing |
+| MoveIt feasibility for detected poses verified | Doosan virtual/emulator plus Azas motion path | Doosan launch resolves; fake Doosan service path executes request shape, but no real MoveIt planning result for measured poses yet | Missing |
+| RG2 actuation verified | `tools/run_robot_dryrun.sh`, `tools/run_robot_real.sh`, `jarvis` RG2 services | Fake RG2 Trigger service path works; real RG2 hardware/fake-driver feedback still not field-verified | Missing |
+| Real robot hardware gate verified | `tools/run_robot_real.sh`, `docs/safety_checklist.md` | Script requires a recent strict live-gate stamp plus explicit phrase; e-stop/workspace/operator gates not field-verified | Missing |
+
+## Current Stop Condition
+
+Do not claim real robot-control readiness until these are verified on the robot PC:
+
+1. RealSense publishes color, aligned depth, and camera info with expected frame IDs.
+2. YOLO `best.pt` publishes `detected:*` on `/azas/cup_detection` for the actual tumbler/lid.
+3. Depth projection is validated with a known-distance target.
+4. Camera-to-base or hand-eye TF is measured and stable.
+5. `/jarvis/tumbler_dispenser/tumbler_pose` is produced from real camera detection, not the smoke publisher.
+6. Doosan virtual/emulator motion accepts the selected M0609 plan without workspace/collision failure.
+7. RG2 open/close service behavior, width/force, timeout, and failure handling are verified.
+8. Real motion is attempted only through `tools/run_robot_real.sh` after the full safety checklist is signed off and a recent strict live-gate stamp exists.
+9. `tools/check_real_motion_config.sh` passes with measured, non-placeholder calibration and safety values.
+
+Field command before real motion:
+
+```bash
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh
+```
+
+Current no-bringup evidence: the gate checker fails closed because camera topics, Doosan motion services, and RG2 services are not running in this session. `run_robot_real.sh` also refuses to proceed when the strict gate stamp is missing.

@@ -12,3 +12,30 @@ __pycache__/
 .vscode/
 .idea/
 
+
+# ROS 2 / colcon
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Codex / local agent state
+.codex/
+.agents/
+.omx/
+
+# local logs / temp
+*.log
+tmp/

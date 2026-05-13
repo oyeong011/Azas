@@ -1,0 +1,29 @@
+# Azas voice recipe placeholder catalog.
+# Color sticker IDs are source-backed by user input: yellow, red, blue, green.
+# Ingredient assignments and final 16 recipe compositions are not confirmed yet.
+colors:
+  yellow:
+    aliases: [노랑, 노란색, 옐로우, yellow]
+  red:
+    aliases: [빨강, 빨간색, 레드, red]
+  blue:
+    aliases: [파랑, 파란색, 블루, blue]
+  green:
+    aliases: [초록, 초록색, 그린, green]
+recipes:
+  recipe_01: {aliases: [1번, 일번, 레시피1], dispenser_ids: []}
+  recipe_02: {aliases: [2번, 이번, 레시피2], dispenser_ids: []}
+  recipe_03: {aliases: [3번, 삼번, 레시피3], dispenser_ids: []}
+  recipe_04: {aliases: [4번, 사번, 레시피4], dispenser_ids: []}
+  recipe_05: {aliases: [5번, 오번, 레시피5], dispenser_ids: []}
+  recipe_06: {aliases: [6번, 육번, 레시피6], dispenser_ids: []}
+  recipe_07: {aliases: [7번, 칠번, 레시피7], dispenser_ids: []}
+  recipe_08: {aliases: [8번, 팔번, 레시피8], dispenser_ids: []}
+  recipe_09: {aliases: [9번, 구번, 레시피9], dispenser_ids: []}
+  recipe_10: {aliases: [10번, 십번, 레시피10], dispenser_ids: []}
+  recipe_11: {aliases: [11번, 십일번, 레시피11], dispenser_ids: []}
+  recipe_12: {aliases: [12번, 십이번, 레시피12], dispenser_ids: []}
+  recipe_13: {aliases: [13번, 십삼번, 레시피13], dispenser_ids: []}
+  recipe_14: {aliases: [14번, 십사번, 레시피14], dispenser_ids: []}
+  recipe_15: {aliases: [15번, 십오번, 레시피15], dispenser_ids: []}
+  recipe_16: {aliases: [16번, 십육번, 레시피16], dispenser_ids: []}

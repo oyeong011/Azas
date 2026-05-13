@@ -1,252 +1,250 @@
 # Azas
 
-ROS2 기반 JARVIS 작업 패키지입니다.
+ROS 2 Humble MVP-1 workspace for Doosan M0609 + OnRobot RG2 + depth vision.
 
-이 저장소는 Doosan ROS2 환경 위에서 팀원들이 각자 기능 노드를 추가해 나가기 위한 초기 패키지입니다. 현재는 최소 실행 구조와 예시 launch/node 구성이 포함되어 있으며, 이후 기능별 Python node와 launch 파일을 확장해 사용합니다.
+The authoritative project knowledge base is `wiki/`, compiled from the local course PDFs under `/home/ssu/Downloads/로봇`. Current repo scaffold must stay subordinate to that wiki.
+When implementation details are unclear, inspect `/home/ssu/Downloads/로봇/` directly before relying on summaries. STT work should follow `17차시(04.24)/31장 STT-로봇 연동.pdf` and `dsr_practice.zip` first.
 
-## 목적
+Power-off recovery entrypoints: `docs/recovery_after_poweroff.md` and `docs/current_handoff_2026-05-11.md`.
 
-- 팀 공용 ROS2 Python 패키지 제공
-- 기능별 node를 한 패키지 안에서 관리
-- Doosan ROS2 패키지는 외부 의존성으로 두고, 팀 코드만 이 저장소에서 관리
-- 공동작업자가 동일한 방식으로 build, source, launch 할 수 있도록 기본 구조 제공
-
-## 필요 환경
-
-- Ubuntu 22.04
-- ROS2 Humble
-- `colcon`
-- Doosan ROS2 패키지
-
-이 저장소는 Doosan 전체 패키지를 포함하지 않습니다. 아래 패키지들이 같은 workspace에 있거나, 이미 ROS 환경에 source 되어 있어야 합니다.
-
-필수 의존 패키지:
-
-- `dsr_msgs2`
-- `dsr_controller2`
-- `dsr_hardware2`
-- `dsr_common2`
-- `dsr_bringup2`
-- `dsr_description2`
-
-Gazebo 사용 시 추가:
-
-- `dsr_gazebo2`
-
-## 권장 Workspace 구조
-
-예시:
+## MVP-1 scope
 
 ```text
-jarvis_ws/
-  src/
-    doosan-robot2/
-      dsr_msgs2/
-      dsr_controller2/
-      dsr_hardware2/
-      dsr_common2/
-      dsr_bringup2/
-      dsr_description2/
-      dsr_gazebo2/
-      ...
-    jarvis/
-      package.xml
-      setup.py
-      setup.cfg
-      resource/
-      jarvis/
-      launch/
+random tumbler detection
+-> RG2 grasp
+-> align cup_mouth_center below a fixed dispenser_outlet
 ```
 
-이 저장소는 workspace의 `src/jarvis` 위치에 clone하는 것을 권장합니다.
+STT/LLM/VLA cocktail selection is post-MVP. It may choose user intent or a recipe later, but it must never generate robot coordinates, trajectories, collision decisions, calibration values, or safety decisions.
 
-## 설치
-
-workspace 생성:
+## Workspace
 
 ```bash
-mkdir -p ~/jarvis_ws/src
-cd ~/jarvis_ws/src
-```
-
-Doosan ROS2 패키지를 먼저 준비합니다. 팀에서 사용하는 Doosan repo를 clone하거나 기존 `doosan-robot2` 폴더를 복사합니다.
-
-그 다음 이 패키지를 clone합니다:
-
-```bash
-cd ~/jarvis_ws/src
-git clone https://github.com/ROS2JARVIS/Azas.git jarvis
-```
-
-전체 workspace 빌드:
-
-```bash
-cd ~/jarvis_ws
 source /opt/ros/humble/setup.bash
-colcon build
+colcon build --symlink-install
 source install/setup.bash
 ```
 
-`jarvis` 패키지만 다시 빌드:
+## Packages
+
+- `azas_interfaces` - shared MVP messages, services, and `PickAndAlign.action`.
+- `azas_perception` - depth/CameraInfo ingestion, tumbler detection, pixel-to-3D projection.
+- `azas_calibration` - camera/base, `dispenser_outlet`, and `cup_mouth_center` offset boundaries.
+- `azas_motion` - MoveItPy motion coordination skeleton for M0609.
+- `azas_gripper` - RG2 service boundary with fake/real separation pending hardware confirmation.
+- `azas_task_manager` - `/azas/pick_and_align` action orchestration.
+- `azas_bringup` - launch and YAML placeholders.
+- `azas_voice` - 17차시 STT pattern adapted for `/stt_result` text input and symbolic cocktail recipe/dispenser color mapping.
+
+`azas_voice` is present as a symbolic STT/recipe-mapping layer. It does not command robot motion; final `/azas/make_cocktail` orchestration remains gated by MVP-1 robot readiness.
+
+## Hardware values policy
+
+The following are deliberately placeholders until measured or confirmed: `EE_LINK`, `GROUP_NAME`, camera topics/frame, hand-eye transform, `dispenser_outlet` pose, RG2 command units/ranges, TCP offset, cup dimensions, table/workspace bounds.
+
+`src/azas_bringup/config/calibration.yaml` separates real calibration fields from dry-run example static TF values. The real fields intentionally remain `null` / `확인 필요` until measured. Placeholder static TF values are for simulation and TF graph debugging only; they must not be used on the real robot.
+
+Start with:
+
+- `wiki/overview.md`
+- `wiki/syntheses/MVP-1 Tumbler Pick And Dispenser Alignment Plan.md`
+- `wiki/syntheses/GitHub Collaboration Task Breakdown.md`
+- `wiki/syntheses/ROS 2 Package Architecture.md`
+
+## PickAndAlign skeleton status
+
+`PickAndAlignActionServer` remains `SKELETON_ONLY`. It publishes the PDF-derived state names and returns `success=false`; it does not call calibrated perception, RG2, MoveItPy, TF lookup, or real motion. TODO is limited to wiring those measured and verified subsystems after the calibration and safety gates pass.
+
+## TF debug dry-run
+
+Use `docs/tf_debug_checklist.md` when checking camera-to-base TF and tumbler pose wiring without commanding robot motion.
+
+The current detector selects one target cup-like object by:
+
+- class filter: `cup`, `tumbler`, or `bottle`
+- selection policy: largest bounding-box area
+- representative pixel: bbox center
+- depth: median valid depth in a 7x7 center window
+- reject: zero, NaN, inf, `<0.15 m`, or `>2.0 m` depth
+
+The pose bridge publishes `/jarvis/tumbler_dispenser/tumbler_pose` only after TF
+conversion succeeds. The published `PoseStamped.header.frame_id` must be
+`base_link`; camera-frame poses must not be treated as robot-frame poses.
+
+Start virtual Doosan:
 
 ```bash
-cd ~/jarvis_ws
+ros2 launch dsr_bringup2 dsr_bringup2_moveit.launch.py model:=m0609 mode:=virtual host:=127.0.0.1 port:=12345
+```
+
+Inspect TF and pose wiring:
+
+```bash
+mkdir -p /tmp/ros2_logs
+touch /tmp/ros2_logs/test_write
+export ROS_LOG_DIR=/tmp/ros2_logs
 source /opt/ros/humble/setup.bash
-colcon build --packages-select jarvis
-source install/setup.bash
+ros2 run tf2_ros tf2_echo base_link camera_color_optical_frame
+ros2 run tf2_tools view_frames
+ros2 topic list | grep -E "tf|tumbler|camera|yolo"
+ros2 topic echo /jarvis/tumbler_dispenser/tumbler_pose
 ```
 
-패키지 인식 확인:
 
-```bash
-ros2 pkg prefix jarvis
-```
+## Connection-ready tumbler transfer
 
-정상 예시:
+When camera and robot are connected, the intended path is:
 
 ```text
-/home/<user>/jarvis_ws/install/jarvis
+YOLO model /home/ssu/Downloads/best.pt
+-> yolo_tumbler_detector_node
+-> /azas/cup_detection
+-> cup_detection_pose_bridge_node
+-> /jarvis/tumbler_dispenser/tumbler_pose
+-> tumbler_floor_place_node
+-> RG2 open/close + Doosan move_line when hardware gates are explicitly enabled
 ```
 
-## 패키지 구조
-
-```text
-jarvis/
-  package.xml
-  setup.py
-  setup.cfg
-  resource/
-    jarvis
-  jarvis/
-    __init__.py
-    <feature_node>.py
-  launch/
-    <feature>.launch.py
-```
-
-각 기능은 보통 다음 두 파일을 추가해 구성합니다:
-
-```text
-jarvis/<feature_node>.py
-launch/<feature>.launch.py
-```
-
-새 node를 추가하면 `setup.py`의 `console_scripts`에 entry point를 추가해야 합니다.
-
-예시:
-
-```python
-entry_points={
-    "console_scripts": [
-        "my_feature_node = jarvis.my_feature_node:main",
-    ],
-}
-```
-
-그 뒤 다시 빌드합니다:
-
-```bash
-cd ~/jarvis_ws
-colcon build --packages-select jarvis
-source install/setup.bash
-```
-
-## 실행 방식
-
-Doosan virtual robot bringup 예시:
+Build both workspaces first:
 
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/jarvis_ws/install/setup.bash
-ros2 launch dsr_bringup2 dsr_bringup2_moveit.launch.py mode:=virtual model:=m0609
+cd /home/ssu/Azas && colcon build --symlink-install
+cd /home/ssu/ros2_ws && colcon build --packages-select jarvis --symlink-install
 ```
 
-`jarvis` 패키지의 launch 실행 예시:
+Start RG2 services:
 
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/jarvis_ws/install/setup.bash
-ros2 launch jarvis <feature>.launch.py
+source /home/ssu/ros2_ws/install/setup.bash
+ros2 launch jarvis rg2_trigger.launch.py ip:=192.168.1.1
 ```
 
-현재 포함된 launch 파일 확인:
+Start camera-driven dry-run transfer:
 
 ```bash
-ros2 pkg prefix jarvis
-ls ~/jarvis_ws/install/jarvis/share/jarvis/launch
+/home/ssu/Azas/tools/run_robot_dryrun.sh
 ```
 
-## Namespace 확인
-
-Doosan launch 설정에 따라 서비스가 namespace 아래에 생성될 수 있습니다.
-
-서비스 확인:
+Check whether the camera detector sees a cup or lid:
 
 ```bash
-ros2 service list
+/home/ssu/Azas/tools/check_robot_detection.sh
 ```
 
-예:
-
-```text
-/motion/move_line
-/dsr01/motion/move_line
-```
-
-node나 launch에서 Doosan 서비스를 직접 호출하는 경우, 실제 서비스 namespace와 코드의 service prefix가 일치해야 합니다.
-
-## Git 작업 흐름
-
-기능 작업 전 최신 main을 받습니다:
+Only add real motion gates after camera detection, RG2 services, emergency stop, workspace bounds, and operator clearance are confirmed:
 
 ```bash
-git checkout main
-git pull
+/home/ssu/Azas/tools/run_robot_real.sh
 ```
 
-기능별 브랜치를 만듭니다:
+Live YOLO requires `ultralytics` and `torch` in the active Python environment.
+
+## OSS robot-control stack
+
+The open-source integration path is tracked in:
+
+- `docs/oss_robot_control_stack.md` - chosen stack, gates, and control path.
+- `docs/field_control_runbook.md` - terminal-by-terminal field procedure from virtual Doosan to dry-run gates.
+- `docs/simulation_and_connection_plan.md` - when to use simulation, camera-only checks, robot/RG2 no-motion checks, and real motion.
+- `docs/rviz_simulation_verification_2026-05-11.md` - current RViz simulation and dry-run controller evidence without robot hardware.
+- `docs/camera_connection_verification_2026-05-11.md` - current RealSense D435i connection, topic, depth, and detection evidence.
+- `docs/full_cocktail_workflow_plan.md` - full STT/recipe/cup/lid/dispenser/shake/pour workflow split into milestones.
+- `docs/dsr_deeptree_integration.md` - project demo source review and the Azas adapter surface.
+- `dependencies/ros2_sources.repos` - ROS 2 source candidates for disposable review workspaces.
+- `dependencies/dsr_deeptree_sources.repos` - pinned project demo source for review-only import.
+- `dependencies/python_optional_requirements.txt` - YOLO, Grounded-SAM/LangSAM, and STT Python candidates.
+- `tools/check_oss_stack.sh` - non-hardware readiness check for packages, launch files, and optional imports.
+- `docs/control_readiness_audit.md` - current completion audit and remaining hardware gates.
+
+Run the non-hardware check after building Azas and `ros2_ws`:
 
 ```bash
-git checkout -b feature/<feature-name>
+/home/ssu/Azas/tools/check_oss_stack.sh
 ```
 
-작업 후:
+Or run the full non-hardware verifier:
 
 ```bash
-git add .
-git commit -m "Add <feature-name>"
-git push -u origin feature/<feature-name>
+/home/ssu/Azas/tools/verify_control_readiness.sh
 ```
 
-GitHub에서 Pull Request를 만들어 main에 병합합니다.
+Warnings mean an optional runtime path is unavailable; failures mean the robot-control stack is not ready for dry-run.
 
-## Troubleshooting
-
-`Package 'jarvis' not found`
+Run the end-to-end non-hardware control smoke:
 
 ```bash
-source /opt/ros/humble/setup.bash
-source ~/jarvis_ws/install/setup.bash
-ros2 pkg prefix jarvis
+/home/ssu/Azas/tools/smoke_control_path.sh
 ```
 
-다른 workspace가 먼저 잡히면 새 터미널에서 다시 source 하거나, source 순서를 확인합니다.
+This injects a fake `CupDetection`, verifies the pose bridge, and waits for the floor-place controller to publish `DONE` with `enable_hardware:=false`.
 
-`ModuleNotFoundError: No module named 'dsr_msgs2'`
-
-Doosan message package가 빌드/source되지 않은 상태입니다.
+Run the fake-hardware service call smoke:
 
 ```bash
-cd ~/jarvis_ws
-source /opt/ros/humble/setup.bash
-colcon build --packages-select dsr_msgs2 jarvis
-source install/setup.bash
+/home/ssu/Azas/tools/smoke_fake_hardware_path.sh
 ```
 
-Doosan 서비스가 보이지 않을 때:
+This verifies `enable_hardware:=true` against fake Doosan `MoveLine` and fake RG2 Trigger services only.
+
+After starting the live dry-run bringup on the robot PC, check the field gates without commanding motion:
 
 ```bash
-ros2 service list | grep motion
+/home/ssu/Azas/tools/check_live_hardware_gates.sh
 ```
 
-bringup launch가 실행 중인지, namespace가 있는지 확인합니다.
+To decide what should be connected next without commanding motion:
+
+```bash
+/home/ssu/Azas/tools/check_connection_stage.sh
+```
+
+For the full field no-motion report before any real robot run:
+
+```bash
+/home/ssu/Azas/tools/field_no_motion_report.sh
+```
+
+To see exactly which measured calibration/safety values still block real motion:
+
+```bash
+/home/ssu/Azas/tools/real_motion_measurement_report.sh
+```
+
+Use `STRICT=true` when every optional warning, including detection and RG2 service availability, should fail the gate.
+
+Before real robot motion, strict mode must pass and write the gate stamp accepted by `run_robot_real.sh`:
+
+```bash
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh
+```
+
+To isolate camera depth projection:
+
+```bash
+/home/ssu/Azas/tools/check_depth_projection_sample.sh
+```
+
+For a DSR-inspired cocktail task sequence without robot motion:
+
+```bash
+ros2 launch azas_bringup cocktail_dryrun.launch.py
+```
+
+For a non-hardware smoke test with fake cup/lid detections and a two-dispenser recipe:
+
+```bash
+/home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.sh
+```
+
+For field execution order, follow:
+
+```bash
+/home/ssu/Azas/tools/run_doosan_virtual_m0609.sh
+/home/ssu/Azas/tools/run_robot_dryrun.sh
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh
+/home/ssu/Azas/tools/run_robot_real.sh
+```
+
+For the hardware connection decision, read `docs/simulation_and_connection_plan.md`. In short: do simulation/fake-hardware first, connect the camera before robot motion, then connect Doosan/RG2 for no-motion strict gates, and only then run real motion.
