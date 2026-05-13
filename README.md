@@ -65,11 +65,15 @@ The current detector selects one target cup-like object by:
 - selection policy: largest bounding-box area
 - representative pixel: bbox center
 - depth: median valid depth in a 7x7 center window
+- depth scale: `depth_scale_mode=auto` maps `16UC1`/`mono16` to `0.001`
+  meter-per-mm scale and `32FC1` to `1.0` meter scale
 - reject: zero, NaN, inf, `<0.15 m`, or `>2.0 m` depth
 
 The pose bridge publishes `/jarvis/tumbler_dispenser/tumbler_pose` only after TF
 conversion succeeds. The published `PoseStamped.header.frame_id` must be
 `base_link`; camera-frame poses must not be treated as robot-frame poses.
+Latest-TF fallback is a diagnostic aid for timestamp problems only; it is not
+real robot readiness evidence.
 
 Start virtual Doosan:
 
@@ -86,6 +90,7 @@ export ROS_LOG_DIR=/tmp/ros2_logs
 source /opt/ros/humble/setup.bash
 ros2 run tf2_ros tf2_echo base_link camera_color_optical_frame
 ros2 run tf2_tools view_frames
+ros2 topic echo --once /camera/aligned_depth_to_color/image_raw | grep encoding
 ros2 topic list | grep -E "tf|tumbler|camera|yolo"
 ros2 topic echo /jarvis/tumbler_dispenser/tumbler_pose
 ```

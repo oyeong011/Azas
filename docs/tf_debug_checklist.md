@@ -99,8 +99,21 @@ Expected detector logs:
 - depth is the median of valid depth values in the `depth_window_size` window
 - depth is rejected if it is zero, NaN, inf, below `min_depth_m`, or above
   `max_depth_m`
+- depth scale is selected from the depth image encoding in `depth_scale_mode=auto`:
+  `16UC1`/`mono16` use millimeter scale `0.001`, and `32FC1` uses meter scale
+  `1.0`
 - projected camera point is logged in `camera_color_optical_frame`
 - transformed pose is logged and published only when TF to `base_link` succeeds
+
+Confirm the live aligned-depth encoding before trusting projected camera points:
+
+```bash
+ros2 topic echo --once /camera/aligned_depth_to_color/image_raw | grep encoding
+```
+
+The bridge may use latest TF when a detection stamp is zero, and can optionally
+retry latest TF when `allow_latest_tf_fallback:=true`. That fallback is for
+diagnosing timestamp problems only; it does not prove real-motion readiness.
 
 ## Inspect TF
 
@@ -164,5 +177,6 @@ unconnected frame, keep the system in no-motion mode.
 - Stop if `calibration.yaml` still contains null or unconfirmed real robot
   calibration values.
 - Do not replace measured hand-eye calibration with example static TF values.
+- Do not treat latest-TF fallback success as measured hand-eye calibration.
 - Do not connect real robot execution, RG2 control, or `PickAndAlignActionServer`
   execution while using placeholder TF values.

@@ -18,8 +18,8 @@ def generate_launch_description():
     camera_base_tf_roll = LaunchConfiguration("camera_base_tf_roll")
     camera_base_tf_pitch = LaunchConfiguration("camera_base_tf_pitch")
     camera_base_tf_yaw = LaunchConfiguration("camera_base_tf_yaw")
-    camera_base_parent_frame = LaunchConfiguration("camera_base_tf_parent_frame")
-    camera_base_child_frame = LaunchConfiguration("camera_base_tf_child_frame")
+    camera_base_parent_frame = LaunchConfiguration("camera_base_parent_frame")
+    camera_base_child_frame = LaunchConfiguration("camera_base_child_frame")
 
     yolo_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -113,8 +113,6 @@ def generate_launch_description():
         DeclareLaunchArgument("publish_camera_base_tf", default_value="false"),
         DeclareLaunchArgument("camera_base_parent_frame", default_value="base_link"),
         DeclareLaunchArgument("camera_base_child_frame", default_value="camera_color_optical_frame"),
-        DeclareLaunchArgument("camera_base_tf_parent_frame", default_value=LaunchConfiguration("camera_base_parent_frame")),
-        DeclareLaunchArgument("camera_base_tf_child_frame", default_value=LaunchConfiguration("camera_base_child_frame")),
         DeclareLaunchArgument("camera_base_tf_x", default_value="0.0"),
         DeclareLaunchArgument("camera_base_tf_y", default_value="0.0"),
         DeclareLaunchArgument("camera_base_tf_z", default_value="0.0"),

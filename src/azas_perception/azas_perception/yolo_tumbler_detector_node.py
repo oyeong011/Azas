@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Optional
 
 import cv2
@@ -38,6 +39,8 @@ class Detection2D:
 class DepthSample:
     raw: float
     meters: float
+    scale: float
+    encoding: str
     valid_count: int
     total_count: int
     window_size: int
@@ -64,6 +67,7 @@ class YoloTumblerDetectorNode(Node):
         self.declare_parameter("source_frame", "camera_color_optical_frame")
         self.declare_parameter("depth_window_size", 7)
         self.declare_parameter("depth_patch_radius_px", 3)
+        self.declare_parameter("depth_scale_mode", "auto")
         self.declare_parameter("depth_scale", 0.001)
         self.declare_parameter("min_depth_m", 0.15)
         self.declare_parameter("max_depth_m", 2.0)
@@ -71,7 +75,10 @@ class YoloTumblerDetectorNode(Node):
         self.declare_parameter("source", "yolo_tumbler_detector")
 
         self._latest_depth: Optional[np.ndarray] = None
+        self._latest_depth_encoding = ""
+        self._latest_depth_error = ""
         self._latest_info: Optional[CameraInfo] = None
+        self._last_depth_scale_log = ""
         self._model = self._load_model()
 
         self._pub = self.create_publisher(CupDetection, "/azas/cup_detection", 10)
@@ -101,9 +108,24 @@ class YoloTumblerDetectorNode(Node):
         return model
 
     def _on_depth(self, msg: Image) -> None:
+        encoding = msg.encoding.lower()
+        if encoding not in self._auto_depth_scales():
+            self._latest_depth = None
+            self._latest_depth_encoding = encoding
+            self._latest_depth_error = f"unsupported_depth_encoding:{msg.encoding}"
+            self.get_logger().error(
+                "Rejecting depth image with unsupported encoding "
+                f"{msg.encoding}; expected 16UC1, mono16, or 32FC1"
+            )
+            return
         try:
             self._latest_depth = self._image_to_array(msg)
+            self._latest_depth_encoding = encoding
+            self._latest_depth_error = ""
         except Exception as exc:
+            self._latest_depth = None
+            self._latest_depth_encoding = encoding
+            self._latest_depth_error = "depth_conversion_failed"
             self.get_logger().error(f"depth conversion failed: {exc}")
 
     def _on_camera_info(self, msg: CameraInfo) -> None:
@@ -112,6 +134,9 @@ class YoloTumblerDetectorNode(Node):
     def _on_color(self, msg: Image) -> None:
         if self._model is None:
             self._publish_invalid(msg, "model_not_loaded")
+            return
+        if self._latest_depth_error:
+            self._publish_invalid(msg, self._latest_depth_error)
             return
         if self._latest_depth is None or self._latest_info is None:
             self._publish_invalid(msg, "waiting_for_depth_and_camera_info")
@@ -141,15 +166,23 @@ class YoloTumblerDetectorNode(Node):
 
         info = self._latest_info
         intrinsics = CameraIntrinsics(fx=info.k[0], fy=info.k[4], cx=info.k[2], cy=info.k[5])
+        if not self._valid_intrinsics(intrinsics):
+            self.get_logger().error(
+                "Invalid CameraInfo intrinsics; refusing projection: "
+                f"fx={intrinsics.fx} fy={intrinsics.fy} cx={intrinsics.cx} cy={intrinsics.cy}"
+            )
+            self._publish_invalid(msg, "invalid_camera_info")
+            return
         try:
             x, y, z = pixel_depth_to_camera_point(
                 detection.center_u,
                 detection.center_v,
                 float(depth.raw),
                 intrinsics,
-                depth_scale=float(self.get_parameter("depth_scale").value),
+                depth_scale=depth.scale,
             )
-        except ValueError:
+        except ValueError as exc:
+            self.get_logger().error(f"depth projection failed: {exc}")
             self._publish_invalid(msg, "invalid_projected_depth")
             return
 
@@ -159,6 +192,7 @@ class YoloTumblerDetectorNode(Node):
             f"bbox=({detection.x_min},{detection.y_min})-({detection.x_max},{detection.y_max}) "
             f"center=({detection.center_u},{detection.center_v}) area={detection.area} "
             f"depth_raw_median={depth.raw:.3f} depth_m={depth.meters:.3f} "
+            f"depth_encoding={depth.encoding} depth_scale={depth.scale:.6g} "
             f"valid_depth={depth.valid_count}/{depth.total_count} window={depth.window_size}"
         )
         self.get_logger().info(
@@ -179,6 +213,7 @@ class YoloTumblerDetectorNode(Node):
             f"center=({detection.center_u},{detection.center_v}) "
             f"area={detection.area} "
             f"depth_raw={depth.raw:.1f} depth_m={depth.meters:.3f} "
+            f"depth_encoding={depth.encoding} depth_scale={depth.scale:.6g} "
             f"window={depth.window_size} valid_depth={depth.valid_count}/{depth.total_count}"
         )
         output.source = str(self.get_parameter("source").value)
@@ -243,9 +278,12 @@ class YoloTumblerDetectorNode(Node):
                 f"window around center=({u},{v})"
             )
             return None
-        depth_scale = float(self.get_parameter("depth_scale").value)
+        depth_scale = self._depth_scale()
+        if depth_scale is None:
+            return None
         min_depth_m = float(self.get_parameter("min_depth_m").value)
         max_depth_m = float(self.get_parameter("max_depth_m").value)
+        self._log_depth_scale(depth_scale)
         depth_m = finite_positive * depth_scale
         valid = finite_positive[
             np.isfinite(depth_m)
@@ -265,6 +303,8 @@ class YoloTumblerDetectorNode(Node):
         return DepthSample(
             raw=median_raw,
             meters=median_raw * depth_scale,
+            scale=depth_scale,
+            encoding=self._latest_depth_encoding,
             valid_count=int(valid.size),
             total_count=total_count,
             window_size=window_size,
@@ -313,6 +353,54 @@ class YoloTumblerDetectorNode(Node):
     def _source_frame(self, info: CameraInfo, msg: Image) -> str:
         configured = str(self.get_parameter("source_frame").value).strip()
         return configured or info.header.frame_id or msg.header.frame_id
+
+    @staticmethod
+    def _auto_depth_scales() -> dict[str, float]:
+        return {
+            "16uc1": 0.001,
+            "mono16": 0.001,
+            "32fc1": 1.0,
+        }
+
+    def _depth_scale(self) -> Optional[float]:
+        mode = str(self.get_parameter("depth_scale_mode").value).strip().lower()
+        encoding = self._latest_depth_encoding
+        if mode == "manual":
+            depth_scale = float(self.get_parameter("depth_scale").value)
+            if depth_scale <= 0:
+                self.get_logger().error(
+                    f"Rejecting depth projection: manual depth_scale must be positive, got {depth_scale}"
+                )
+                return None
+            return depth_scale
+        if mode != "auto":
+            self.get_logger().error(
+                f"Rejecting depth projection: unsupported depth_scale_mode={mode!r}; use 'auto' or 'manual'"
+            )
+            return None
+        scale = self._auto_depth_scales().get(encoding)
+        if scale is None:
+            self.get_logger().error(
+                f"Rejecting depth projection: unsupported depth encoding {encoding!r} in auto mode"
+            )
+            return None
+        return scale
+
+    def _log_depth_scale(self, depth_scale: float) -> None:
+        mode = str(self.get_parameter("depth_scale_mode").value).strip().lower()
+        key = f"{self._latest_depth_encoding}:{mode}:{depth_scale:.9g}"
+        if key == self._last_depth_scale_log:
+            return
+        self._last_depth_scale_log = key
+        self.get_logger().info(
+            "Depth scale selected: "
+            f"encoding={self._latest_depth_encoding} mode={mode} scale={depth_scale:.6g}"
+        )
+
+    @staticmethod
+    def _valid_intrinsics(intrinsics: CameraIntrinsics) -> bool:
+        values = (intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy)
+        return all(math.isfinite(value) for value in values) and intrinsics.fx > 0 and intrinsics.fy > 0
 
     def _publish_invalid(self, msg: Image, status: str) -> None:
         output = CupDetection()

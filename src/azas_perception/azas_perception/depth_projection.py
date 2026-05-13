@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,13 @@ def pixel_depth_to_camera_point(
         raise ValueError("depth_raw must be positive")
     if depth_scale <= 0:
         raise ValueError("depth_scale must be positive")
+    if not all(
+        math.isfinite(value)
+        for value in (intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy)
+    ):
+        raise ValueError("camera intrinsics must be finite")
+    if intrinsics.fx <= 0 or intrinsics.fy <= 0:
+        raise ValueError("camera intrinsics fx/fy must be positive")
 
     z = depth_raw * depth_scale
     x = (u - intrinsics.cx) * z / intrinsics.fx

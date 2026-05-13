@@ -21,6 +21,8 @@ class CupDetectionPoseBridgeNode(Node):
         self.declare_parameter("require_tf", True)
         self.declare_parameter("tf_timeout_sec", 0.2)
         self.declare_parameter("transform_timeout_sec", -1.0)
+        self.declare_parameter("use_latest_tf_when_stamp_zero", True)
+        self.declare_parameter("allow_latest_tf_fallback", False)
         self.declare_parameter("debug_pose_logging", False)
 
         self._tf_buffer = Buffer()
@@ -91,29 +93,58 @@ class CupDetectionPoseBridgeNode(Node):
 
         timeout_sec = self._transform_timeout_sec()
         request_stamp = pose_msg.header.stamp
+        use_latest_tf = (
+            request_stamp.sec == 0
+            and request_stamp.nanosec == 0
+            and bool(self.get_parameter("use_latest_tf_when_stamp_zero").value)
+        )
         try:
             timeout = rclpy.duration.Duration(seconds=timeout_sec)
             # TODO: Model eye-in-hand direct matrix multiplication as TF before publishing.
             transform = self._tf_buffer.lookup_transform(
                 target_frame,
                 source_frame,
-                rclpy.time.Time.from_msg(request_stamp),
+                rclpy.time.Time() if use_latest_tf else rclpy.time.Time.from_msg(request_stamp),
                 timeout=timeout,
             )
         except TransformException as exc:
-            message = (
-                f"No TF target={target_frame} source={source_frame} "
-                f"request_stamp={request_stamp.sec}.{request_stamp.nanosec:09d} "
-                f"timeout_sec={timeout_sec:.3f}; "
-                "refusing to publish robot-motion pose from camera-frame detection"
-            )
-            if require_tf:
-                self.get_logger().error(f"{message}: {exc}")
-                return None
+            if bool(self.get_parameter("allow_latest_tf_fallback").value) and not use_latest_tf:
+                try:
+                    transform = self._tf_buffer.lookup_transform(
+                        target_frame,
+                        source_frame,
+                        rclpy.time.Time(),
+                        timeout=rclpy.duration.Duration(seconds=timeout_sec),
+                    )
+                    self.get_logger().warn(
+                        "Using latest TF fallback after stamped lookup failed; "
+                        "this is diagnostic-only and does not prove real-motion readiness: "
+                        f"target={target_frame} source={source_frame} "
+                        f"request_stamp={request_stamp.sec}.{request_stamp.nanosec:09d}: {exc}"
+                    )
+                except TransformException as fallback_exc:
+                    return self._handle_tf_failure(
+                        target_frame,
+                        source_frame,
+                        request_stamp,
+                        timeout_sec,
+                        require_tf,
+                        fallback_exc,
+                    )
+            else:
+                return self._handle_tf_failure(
+                    target_frame,
+                    source_frame,
+                    request_stamp,
+                    timeout_sec,
+                    require_tf,
+                    exc,
+                )
+        if use_latest_tf:
             self.get_logger().warn(
-                f"{message}; require_tf=false but output frame differs, fail-closed: {exc}"
+                "Using latest TF because detection stamp is zero; "
+                "this is diagnostic-only and does not prove real-motion readiness"
             )
-            return None
 
         transformed = PoseStamped()
         transformed.header.stamp = pose_msg.header.stamp
@@ -122,6 +153,29 @@ class CupDetectionPoseBridgeNode(Node):
         if debug_pose_logging:
             self._log_pose("Transformed cup pose", transformed)
         return transformed
+
+    def _handle_tf_failure(
+        self,
+        target_frame: str,
+        source_frame: str,
+        request_stamp,
+        timeout_sec: float,
+        require_tf: bool,
+        exc: TransformException,
+    ):
+        message = (
+            f"No TF target={target_frame} source={source_frame} "
+            f"request_stamp={request_stamp.sec}.{request_stamp.nanosec:09d} "
+            f"timeout_sec={timeout_sec:.3f}; "
+            "refusing to publish robot-motion pose from camera-frame detection"
+        )
+        if require_tf:
+            self.get_logger().error(f"{message}: {exc}")
+            return None
+        self.get_logger().warn(
+            f"{message}; require_tf=false but output frame differs, fail-closed: {exc}"
+        )
+        return None
 
     def _transform_timeout_sec(self) -> float:
         transform_timeout_sec = float(self.get_parameter("transform_timeout_sec").value)
