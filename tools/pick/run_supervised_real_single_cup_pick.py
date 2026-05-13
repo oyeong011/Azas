@@ -64,9 +64,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--observe-mode", choices=("joint", "pose"), default="joint")
     parser.add_argument("--observe-joint-1-deg", type=float, default=0.0)
     parser.add_argument("--observe-joint-2-deg", type=float, default=25.0)
-    parser.add_argument("--observe-joint-3-deg", type=float, default=65.0)
+    parser.add_argument("--observe-joint-3-deg", type=float, default=95.0)
     parser.add_argument("--observe-joint-4-deg", type=float, default=0.0)
-    parser.add_argument("--observe-joint-5-deg", type=float, default=135.0)
+    parser.add_argument("--observe-joint-5-deg", type=float, default=125.0)
     parser.add_argument("--observe-joint-6-deg", type=float, default=0.0)
     parser.add_argument("--observe-x", type=float, default=0.35)
     parser.add_argument("--observe-y", type=float, default=-0.25)
@@ -259,16 +259,53 @@ def check_real_motion_backend_ready() -> bool:
         else:
             print(f"[FAIL] Doosan service missing: {service_name}")
             ok = False
+    robot_state = read_robot_state()
+    if robot_state is None:
+        print("[WARN] could not read Doosan robot_state")
+    else:
+        print(f"[INFO] Doosan robot_state={robot_state}")
+        if robot_state not in {1, 2}:
+            print("[FAIL] Doosan robot is not in STANDBY/MOVING-capable state; real motion is blocked")
+            ok = False
     alarm = read_last_alarm()
     if alarm is not None:
         level = int(alarm.get("level", 0))
         group = alarm.get("group")
         index = alarm.get("index")
         print(f"[INFO] last Doosan alarm: level={level} group={group} index={index}")
-        if level >= 2:
-            print("[FAIL] Doosan controller reports active/error-level alarm; real motion is blocked")
+        if level >= 2 and robot_state not in {1, 2}:
+            print("[FAIL] Doosan controller is not recovered from the reported alarm; real motion is blocked")
             ok = False
     return ok
+
+
+def read_robot_state() -> int | None:
+    try:
+        from dsr_msgs2.srv import GetRobotState
+        import rclpy
+
+        initialized_here = False
+        if not rclpy.ok():
+            rclpy.init(args=None)
+            initialized_here = True
+        node = rclpy.create_node("azas_single_pick_robot_state_check")
+        try:
+            client = node.create_client(GetRobotState, "/system/get_robot_state")
+            if not client.wait_for_service(timeout_sec=2.0):
+                return None
+            future = client.call_async(GetRobotState.Request())
+            rclpy.spin_until_future_complete(node, future, timeout_sec=2.0)
+            response = future.result()
+            if response is None or not response.success:
+                return None
+            return int(response.robot_state)
+        finally:
+            node.destroy_node()
+            if initialized_here and rclpy.ok():
+                rclpy.shutdown()
+    except Exception as exc:
+        print(f"[WARN] could not read Doosan robot state: {exc}")
+        return None
 
 
 def read_last_alarm() -> dict[str, int] | None:
