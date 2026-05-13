@@ -19,9 +19,6 @@ setup(
     entry_points={
         "console_scripts": [
             "tumbler_detector_node = azas_perception.tumbler_detector_node:main",
-            "external_grasp_adapter_node = azas_perception.external_grasp_adapter_node:main",
-            "grounded_sam2_mask_detector_node = azas_perception.grounded_sam2_mask_detector_node:main",
-            "grounded_sam2_tumbler_mask_node = azas_perception.grounded_sam2_tumbler_mask_node:main",
             "yolo_tumbler_detector_node = azas_perception.yolo_tumbler_detector_node:main",
             "cup_detection_pose_bridge_node = azas_perception.cup_detection_pose_bridge_node:main",
             "simulated_cup_detection_node = azas_perception.simulated_cup_detection_node:main",

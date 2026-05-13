@@ -10,8 +10,6 @@ find_package(std_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/CupDetection.msg"
   "msg/CupPose.msg"
-  "msg/GraspCandidate.msg"
-  "msg/GraspCandidateArray.msg"
   "srv/CalibrateOutlet.srv"
   "srv/SaveCupOffset.srv"
   "srv/SetGripper.srv"

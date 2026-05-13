@@ -1,21 +1,17 @@
-# Optional Python runtime dependencies for Azas perception and voice paths.
-#
-# Install into the same Python environment used by ROS 2 Humble.
-# Review licenses before product use. In particular, Ultralytics is AGPL-3.0
-# unless an enterprise license is used.
+# Azas 선택적 Python 의존성
+# ROS 2 Humble 환경과 동일한 Python에 설치하세요.
+# Ultralytics는 AGPL-3.0 라이선스입니다. 상업적 사용 시 라이선스를 확인하세요.
 
-# Fast MVP tumbler detector path: azas_perception/yolo_tumbler_detector_node.py
+# ── 비전 (필수) ────────────────────────────────────────────
+# YOLO 텀블러 탐지: azas_perception/yolo_tumbler_detector_node.py
 ultralytics
 
-# Open-vocabulary mask fallback: azas_perception/grounded_sam2_tumbler_mask_node.py
-# Upstream install guidance currently uses a Git URL, not a stable PyPI-only path.
-git+https://github.com/luca-medeiros/lang-segment-anything.git
-
-# Lecture-compatible STT path: azas_voice/stt_node.py
+# ── 음성 인식 (선택) ────────────────────────────────────────
+# STT 노드: azas_voice/stt_node.py
 SpeechRecognition
 PyAudio
 
-# Offline/local STT candidates for later replacement of Google Web Speech.
-vosk
-openai-whisper
+# 오프라인 STT 후보 (Google Web Speech 대체용, 미결정)
+# vosk
+# openai-whisper
 

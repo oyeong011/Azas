@@ -1,11 +1,10 @@
 # azas_interfaces messages
 
-These interfaces are MVP-1 contracts derived from `wiki/syntheses/ROS 2 Package Architecture.md`.
-They intentionally exclude recipe/LLM coordinate outputs.
+MVP-1 메시지 정의입니다. LLM/AI가 생성한 좌표는 포함하지 않습니다.
 
+## 현재 메시지
 
-## External grasp candidates
-
-`GraspCandidate` and `GraspCandidateArray` are adapter contracts for external grasp generators such as AnyGrasp, Contact-GraspNet, or GPD. They carry candidate poses only. They do not authorize robot motion.
-
-Before `PickAndAlign` can use a candidate, Azas must verify frame freshness, transform to `base_link`, workspace limits, collision geometry, gripper compatibility, and MoveIt feasibility.
+| 파일 | 용도 |
+|------|------|
+| `CupDetection.msg` | YOLO 탐지 결과 (bbox, confidence, depth, 직립 상태) |
+| `CupPose.msg` | 컵 자세 (카메라 좌표계) |
