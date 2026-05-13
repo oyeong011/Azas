@@ -50,6 +50,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--planning-timeout-sec", type=float, default=1.0)
     parser.add_argument("--velocity-scale", type=float, default=0.03)
     parser.add_argument("--accel-scale", type=float, default=0.03)
+    parser.add_argument("--observe-x", type=float, default=0.35)
+    parser.add_argument("--observe-y", type=float, default=-0.25)
+    parser.add_argument("--observe-z", type=float, default=0.45)
+    parser.add_argument("--observe-qx", type=float, default=0.0)
+    parser.add_argument("--observe-qy", type=float, default=0.0)
+    parser.add_argument("--observe-qz", type=float, default=0.0)
+    parser.add_argument("--observe-qw", type=float, default=1.0)
+    parser.add_argument("--skip-observe", action="store_true")
+    parser.add_argument("--observe-only", action="store_true")
     parser.add_argument("--gripper-open-service", default="/jarvis/rg2/open")
     parser.add_argument("--gripper-close-service", default="/jarvis/rg2/close")
     parser.add_argument("--execute-action-name", default="/execute_trajectory")
@@ -68,10 +77,23 @@ def main() -> int:
 
     if not validate_motion_gates(args):
         return 2
+    if args.skip_observe and args.observe_only:
+        print("[FAIL] --skip-observe and --observe-only are mutually exclusive")
+        return 2
     if not validate_speed_scales(args):
         return 2
     if not check_services(args, strict=args.enable_real_motion):
         return 1
+
+    if not args.skip_observe:
+        if not run_observe_cup_pose(args):
+            return 1
+        if args.observe_only:
+            print_stage("DONE", "observe-only stop before WAIT_OR_READ_CUP_POSE")
+            print("No gripper command was sent.")
+            return 0
+    else:
+        print_stage("SKIP_OBSERVE_CUP_POSE", "operator requested cup pose flow without observe motion")
 
     cup_pose = read_cup_pose(args)
     if cup_pose is None:
@@ -135,11 +157,15 @@ def validate_speed_scales(args: argparse.Namespace) -> bool:
 
 def check_services(args: argparse.Namespace, strict: bool) -> bool:
     print_stage("CHECK_SERVICES", "checking RG2 services, MoveIt planning, and execution actions")
-    checks = [
-        ("gripper open", args.gripper_open_service),
-        ("gripper close", args.gripper_close_service),
-        ("MoveIt plan", "/plan_kinematic_path"),
-    ]
+    checks = [("MoveIt plan", "/plan_kinematic_path")]
+    if args.observe_only:
+        print("[INFO] observe-only mode; gripper services are not required and will not be called")
+    else:
+        checks = [
+            ("gripper open", args.gripper_open_service),
+            ("gripper close", args.gripper_close_service),
+            *checks,
+        ]
     service_list = command_output(["ros2", "service", "list"], timeout=5.0)
     if strict and not service_list:
         service_list = "\n".join(rclpy_graph_names("services"))
@@ -165,6 +191,44 @@ def check_services(args: argparse.Namespace, strict: bool) -> bool:
     print(f"[{execute_status}] execute action: {args.execute_action_name} [moveit_msgs/action/ExecuteTrajectory]")
     print(f"[{move_status}] move action: {args.move_action_name} [moveit_msgs/action/MoveGroup]")
     return ok and (move_group_found or not strict) and (execute_action_ok or not strict)
+
+
+def run_observe_cup_pose(args: argparse.Namespace) -> bool:
+    print_stage("PLAN_OBSERVE_CUP_POSE", "base_link observe pose candidate")
+    observe_pose = observe_pose_dict(args)
+    print(f"observe_pose={json.dumps(observe_pose, sort_keys=True)}")
+    print(f"frame_id={args.base_frame}")
+    print(f"motion_backend={args.execute_action_name} [moveit_msgs/action/ExecuteTrajectory]")
+    print(f"speed_scale={args.velocity_scale:.3f} accel_scale={args.accel_scale:.3f}")
+    if args.base_frame != "base_link":
+        print(f"[FAIL] observe pose frame must be base_link, got {args.base_frame!r}")
+        return False
+    if not args.enable_real_motion:
+        print("[DRY-RUN] observe pose was not executed")
+        return True
+    try:
+        executor = MoveItExecuteTrajectoryBackend(args)
+        executor.execute_observe(observe_pose)
+    except Exception as exc:
+        print(f"[FAIL] observe pose execution stopped: {exc}")
+        return False
+    return True
+
+
+def observe_pose_dict(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "position": {
+            "x": float(args.observe_x),
+            "y": float(args.observe_y),
+            "z": float(args.observe_z),
+        },
+        "orientation": {
+            "x": float(args.observe_qx),
+            "y": float(args.observe_qy),
+            "z": float(args.observe_qz),
+            "w": float(args.observe_qw),
+        },
+    }
 
 
 def rclpy_graph_names(kind: str) -> list[str]:
@@ -431,6 +495,19 @@ class MoveItExecuteTrajectoryBackend:
             self._call_gripper(self.args.gripper_close_service, "GRIPPER_CLOSE")
             trajectory = self._plan_pose("lift", candidate["lift_pose"])
             self._execute_trajectory("lift", trajectory)
+        finally:
+            self.node.destroy_node()
+            try:
+                if self.rclpy.ok():
+                    self.rclpy.shutdown()
+            except Exception:
+                pass
+
+    def execute_observe(self, observe_pose: dict[str, Any]) -> None:
+        try:
+            self._init_moveit()
+            trajectory = self._plan_pose("observe_cup_pose", observe_pose)
+            self._execute_trajectory("observe_cup_pose", trajectory)
         finally:
             self.node.destroy_node()
             try:
