@@ -67,6 +67,25 @@ STT
 
 ## 어떤 launch를 쓰는가
 
+### 왜 `src/*/launch/*.py`가 있는가
+
+이 구조는 ROS 2 Python 패키지 관례입니다. `setup.py`에서 launch 파일을 `share/<package>/launch`로 설치해야 `ros2 launch <package> <file>.launch.py`가 동작합니다.
+
+현재 `/home/ssu/Azas/src`에서 launch 폴더가 있는 패키지는 두 개뿐입니다.
+
+| 패키지 | launch 수 | 이유 |
+| --- | ---: | --- |
+| `azas_bringup` | 8 | 여러 패키지의 node/launch를 조립하는 상위 bringup 패키지이기 때문 |
+| `azas_voice` | 1 | STT/recipe mapper를 한 번에 띄우는 voice 전용 launch |
+
+검증 근거:
+
+- `src/azas_bringup/setup.py`가 `glob("launch/*.launch.py")`를 `share/azas_bringup/launch`에 설치합니다.
+- `src/azas_voice/setup.py`도 같은 방식으로 voice launch를 설치합니다.
+- `/home/ssu/ros2_ws/src/Azas/setup.py`는 `jarvis` launch, rviz, urdf, model, world asset을 `share/jarvis/...`에 설치합니다.
+
+따라서 `src` 아래에 launch `.py`가 있는 것 자체는 정상입니다. 문제는 launch가 많다는 사실이 아니라, `azas_bringup` 안에 권장/실험/레거시 launch가 섞여 있고 이름만 봐서는 상태를 알기 어렵다는 점입니다.
+
 ### Azas bringup launch
 
 | launch | 상태 | 용도 |
