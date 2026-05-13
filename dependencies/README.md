@@ -1,119 +1,112 @@
-# External ROS 2 Sources
+# dependencies/
 
-Azas does **not** vendor third-party source trees into this repository. External ROS 2 packages are tracked as `vcs` manifests so their upstream history, license files, and review boundaries remain explicit.
+Azas는 외부 소스 트리를 직접 포함하지 않습니다.  
+외부 ROS 2 패키지는 `vcs` 매니페스트(`.repos` 파일)로 관리합니다.
 
-## Why `.repos` instead of vendoring
+---
 
-- Keeps Azas diffs focused on project code, wiki decisions, and integration glue.
-- Avoids accidentally committing large upstream source trees.
-- Preserves upstream license and commit provenance.
-- Allows review workspaces under `/tmp` before any dependency is accepted into the main ROS workspace.
-- Supports the project rule that robot coordinates must come from calibrated vision/config data, not LLM/VLA outputs or opaque imported behavior.
+## 파일 목록
 
-## Review import commands
+| 파일 | 내용 |
+|------|------|
+| `ros2_sources.repos` | Doosan, MoveIt2, RealSense 등 ROS 2 소스 후보 |
+| `dsr_deeptree_sources.repos` | DSR DeepTree 데모 소스 (리뷰 전용) |
+| `experimental_sources.repos` | 실험적·고위험 소스 후보 |
+| `python_optional_requirements.txt` | YOLO, STT 등 선택적 Python 의존성 |
+| `system_apt_packages.txt` | 시스템 apt 패키지 후보 |
 
-Run imports only in a disposable review workspace first:
+---
+
+## 외부 소스를 벤더링하지 않는 이유
+
+- Azas diff가 프로젝트 코드와 통합 로직에만 집중됩니다.
+- 대형 외부 소스 트리를 실수로 커밋하는 것을 방지합니다.
+- 업스트림 라이선스와 커밋 출처가 명확하게 유지됩니다.
+- 메인 ROS 워크스페이스에 포함하기 전 `/tmp` 검토 워크스페이스에서 먼저 테스트할 수 있습니다.
+
+---
+
+## 리뷰 임포트 명령어
+
+> **반드시 임시 검토 워크스페이스에서 먼저 실행하세요. `/home/ssu/Azas`에 직접 임포트하지 마세요.**
 
 ```bash
+# ROS 2 소스 후보 검토
 mkdir -p /tmp/azas_oss_review/src
 cd /tmp/azas_oss_review
 vcs import src < /home/ssu/Azas/dependencies/ros2_sources.repos
 rosdep install -r --from-paths src --ignore-src --rosdistro humble -y
 colcon build --symlink-install
-```
 
-Experimental/high-risk sources are separated:
-
-```bash
+# 실험적 소스 검토
 mkdir -p /tmp/azas_oss_review_experimental/src
 cd /tmp/azas_oss_review_experimental
 vcs import src < /home/ssu/Azas/dependencies/experimental_sources.repos
-```
 
-Do not copy imported `src/external/*` or `src/experimental/*` trees back into `/home/ssu/Azas`.
-
-Project demo code is tracked separately so it can be reviewed without vendoring:
-
-```bash
+# DSR DeepTree 데모 검토
 mkdir -p /tmp/azas_demo_review/src
 cd /tmp/azas_demo_review
 vcs import src < /home/ssu/Azas/dependencies/dsr_deeptree_sources.repos
 ```
 
-Current demo source: `deeptree0819/DSR_DeepTree` pinned at commit `22f5435086037a759e563047f535f2c3c418351e`.
+현재 데모 소스: `deeptree0819/DSR_DeepTree` 커밋 `22f5435086037a759e563047f535f2c3c418351e`
 
-Optional Python runtime dependencies are kept separate from ROS source manifests:
+---
+
+## Python 의존성 설치
 
 ```bash
 python3 -m pip install -r /home/ssu/Azas/dependencies/python_optional_requirements.txt
 ```
 
-System package candidates are listed in `system_apt_packages.txt`. Review the target Ubuntu/ROS image before installing them on the robot PC.
+`system_apt_packages.txt` 의 패키지는 로봇 PC 이미지(Ubuntu/ROS 버전)를 확인한 후 설치하세요.
 
-## Review order
+---
 
-1. **Doosan ROS 2**: verify Humble branch, M0609 model string, virtual emulator, `dsr_bringup2` MoveIt launch, and license files.
-2. **MoveIt 2 / MoveItPy**: prefer binary packages for normal development; source import is for API/config review and gap debugging.
-3. **RealSense ROS 2 wrapper**: verify camera model, stream profiles, topic names, `CameraInfo`, depth scale, and frame IDs.
-4. **AprilTag ROS 2**: verify `image_rect`/`camera_info` remaps and marker TF naming for calibration target.
-5. **easy_handeye2**: verify Humble build and freehand sampling workflow before using its TF publisher.
-6. **OnRobot ROS2 Driver**: experimental only; test fake hardware first, then document Modbus connection, speed/force limits, stop behavior, and failure handling before any hardware trial.
-7. **AnyGrasp ROS 2**: experimental only; review SDK license registration, ROS distro mismatch, CUDA/PyTorch container requirements, service contracts, and frame conventions before connecting to `PickAndAlign`.
-8. **DSR_DeepTree demo**: review Task 1 action sequencing, Task 2 YOLO/hand-eye conversion, Task 3 STT command mapping, and Task 4 Isaac Sim assets. Port patterns only; do not vendor the full tree.
+## 검토 순서
 
-## External grasp detector experiment log
+1. **Doosan ROS 2** — Humble 브랜치, M0609 모델 문자열, 가상 에뮬레이터, `dsr_bringup2` MoveIt 런치, 라이선스 파일 확인
+2. **MoveIt 2 / MoveItPy** — 일반 개발은 바이너리 패키지 우선, API/설정 검토 시에만 소스 임포트
+3. **RealSense ROS 2 래퍼** — 카메라 모델, 스트림 프로파일, 토픽 이름, `CameraInfo`, 깊이 스케일, 프레임 ID 확인
+4. **AprilTag ROS 2** — `image_rect`/`camera_info` 리맵과 마커 TF 네이밍 확인
+5. **easy_handeye2** — Humble 빌드 확인 및 프리핸드 샘플링 워크플로우 검토
+6. **OnRobot ROS2 드라이버** — 실험적. 가짜 하드웨어 우선 테스트 후 Modbus 연결, 속도/힘 제한, 정지 동작, 실패 처리 문서화 필수
+7. **DSR_DeepTree 데모** — Task 1 액션 시퀀싱, Task 2 YOLO/핸드아이 변환, Task 3 STT 명령 매핑, Task 4 Isaac Sim 에셋 검토. 패턴만 포팅, 전체 트리 벤더링 금지
 
-Status on 2026-05-13: Azas has not vendored or installed grasp detector source
-trees in this repository. The first integration step is offline frame export and
-JSON adapter validation:
+---
 
-```bash
-python3 /home/ssu/Azas/tools/export_grasp_frame.py --output-dir /tmp/azas_grasp_frame
-python3 /home/ssu/Azas/tools/check_grasp_adapter_contract.py --frame-dir /tmp/azas_grasp_frame
-```
+## 그라스프 탐지기 실험 현황 (2026-05-13)
 
-Preferred external install order for RTX 5080 16GB:
+Azas에 그라스프 탐지기 소스는 포함되지 않았습니다.  
+RTX 5080 (16 GB VRAM) 환경 기준 추천 설치 순서:
 
-1. `graspnet/graspnet-baseline` in a separate conda environment, using the
-   pretrained RealSense checkpoint if downloadable and license-compatible.
-2. `NVlabs/contact_graspnet` if GraspNet baseline candidates are poor, accepting
-   the older Python/TensorFlow/CUDA environment risk.
-3. `graspnet/anygrasp_sdk` only after license registration is approved.
-4. `atenpas/gpd` / `atenpas/gpd_ros` as a CPU/PCL fallback. `gpd_ros` is ROS1
-   catkin and must not be treated as a direct ROS2 Humble package.
+1. `graspnet/graspnet-baseline` — 별도 conda 환경, RealSense 사전학습 체크포인트 사용 (라이선스 확인 후)
+2. `NVlabs/contact_graspnet` — GraspNet 결과가 불량할 경우 (구버전 Python/TensorFlow/CUDA 환경 위험 감수)
+3. `graspnet/anygrasp_sdk` — 라이선스 등록 승인 후에만 진행
+4. `atenpas/gpd` / `atenpas/gpd_ros` — CPU/PCL 폴백 (`gpd_ros`는 ROS1 catkin, ROS2 Humble 패키지가 아님)
 
-Experiment outputs should stay under `/tmp` or another external review
-workspace. Azas should only receive adapter glue, schema docs, and small logs.
+실험 결과물은 `/tmp` 또는 외부 검토 워크스페이스에만 보관하세요.
 
-Local environment observation on 2026-05-13:
+---
 
-- `nvidia-smi` reports NVIDIA GeForce RTX 5080 with 16 GB VRAM and driver CUDA
-  capability 13.0.
-- `conda --version` is not available on this machine, so a separate conda env
-  for `graspnet/graspnet-baseline` has not been created yet.
-- System Python is 3.10.12. Installed torch reports `2.11.0+cu130`, but
-  `torch.cuda.is_available()` is `False`; do not treat this Python environment
-  as ready for GraspNet inference.
-- Next install validation should create an external env outside Azas, install
-  `graspnet/graspnet-baseline`, compile its `pointnet2` and `knn` extensions,
-  and test the RealSense pretrained checkpoint against `/tmp/azas_grasp_frame`.
+## 안전 게이트
 
-## Safety gate
+하드웨어 모션에 영향을 줄 수 있는 의존성은 Azas 통합 노트에 다음을 반드시 문서화해야 합니다:
 
-Any dependency that can affect hardware motion must have an Azas integration note documenting:
+- 안전 가정 및 운영자 제어 방법
+- 속도/가속도/힘 제한
+- 예상 실패 동작
+- 가상/가짜 하드웨어 검증 단계
+- 실제 하드웨어 전환 기준
 
-- safety assumptions and operator controls,
-- speed/acceleration/force limits,
-- expected failure behavior,
-- verification steps in virtual/fake hardware mode,
-- criteria for moving to real hardware.
+---
 
-## Non-hardware stack check
+## 비-하드웨어 스택 점검
 
-After building Azas and the local `ros2_ws` bridge packages, run:
+Azas와 `ros2_ws` 브릿지 패키지 빌드 후 실행하세요:
 
 ```bash
-/home/ssu/Azas/tools/check_oss_stack.sh
+bash /home/ssu/Azas/tools/checks/check_oss_stack.sh
 ```
 
-This checks ROS package availability, key launch descriptions, optional Python imports, and the expected local YOLO model path without starting cameras, RG2, or real robot motion.
+카메라, RG2, 실제 로봇 모션 없이 ROS 패키지 가용성, 런치 파일, 선택적 Python 임포트, YOLO 모델 경로를 점검합니다.

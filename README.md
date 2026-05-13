@@ -26,379 +26,155 @@ source install/setup.bash
   → cup_mouth_center를 dispenser_outlet 아래로 정렬
 ```
 
-STT/LLM/VLA는 사용자 의도·레시피 선택만 담당합니다.  
+STT/LLM 은 사용자 의도·레시피 선택만 담당합니다.  
 **로봇 좌표, 궤적, 충돌 판단, 캘리브레이션 값을 절대 생성하지 않습니다.**
 
-전원 차단 복구: `docs/recovery_after_poweroff.md` · `docs/current_handoff_2026-05-11.md`
+전원 차단 복구 절차: `docs/recovery_after_poweroff.md`
 
 ---
 
 ## 패키지 구성
 
-- `azas_interfaces` - shared MVP messages, services, and `PickAndAlign.action`.
-- `azas_perception` - depth/CameraInfo ingestion, tumbler detection, pixel-to-3D projection.
-- `azas_calibration` - camera/base, `dispenser_outlet`, and `cup_mouth_center` offset boundaries.
-- `azas_motion` - MoveItPy motion coordination skeleton for M0609.
-- `azas_gripper` - RG2 service boundary with fake/real separation pending hardware confirmation.
-- `azas_task_manager` - `/azas/pick_and_align` action orchestration.
-- `azas_bringup` - launch and YAML placeholders.
-- `azas_voice` - 17차시 STT pattern adapted for `/stt_result` text input and symbolic cocktail recipe/dispenser color mapping.
+| 패키지 | 역할 |
+|--------|------|
+| `azas_interfaces` | 공용 메시지, 서비스, `PickAndAlign` 액션 정의 |
+| `azas_perception` | YOLO 탐지, 깊이 투영, 컵 자세 브릿지 |
+| `azas_calibration` | 카메라-베이스 TF, 디스펜서·컵 오프셋 캘리브레이션 |
+| `azas_motion` | MoveItPy 모션 플래닝 (현재 no_motion 기본) |
+| `azas_gripper` | RG2 서비스 경계 (플레이스홀더) |
+| `azas_task_manager` | `/azas/pick_and_align` 액션 서버, 칵테일 시퀀스 |
+| `azas_bringup` | 시스템 런치 파일, YAML 설정 |
+| `azas_voice` | STT → 레시피 매핑 (`/stt_result` 입력) |
 
-`azas_voice` is present as a symbolic STT/recipe-mapping layer. It does not command robot motion; final `/azas/make_cocktail` orchestration remains gated by MVP-1 robot readiness.
+---
 
-## Hardware values policy
+## 탐지 파이프라인
 
-The following are deliberately placeholders until measured or confirmed: `EE_LINK`, `GROUP_NAME`, camera topics/frame, hand-eye transform, `dispenser_outlet` pose, RG2 command units/ranges, TCP offset, cup dimensions, table/workspace bounds.
+```
+YOLO 모델 (best.pt)
+  → yolo_tumbler_detector_node      직립 텀블러만 통과 (bbox 비율 >= 1.2)
+  → /azas/cup_detection
+  → cup_detection_pose_bridge_node  TF2로 base_link 변환
+  → /jarvis/tumbler_dispenser/tumbler_pose
+  → PickAndAlignActionServer         그라스프 계획 및 실행
+```
 
-`src/azas_bringup/config/calibration.yaml` separates real calibration fields from dry-run example static TF values. The real fields intentionally remain `null` / `확인 필요` until measured. Placeholder static TF values are for simulation and TF graph debugging only; they must not be used on the real robot.
+컵 좌표는 반드시 이 파이프라인에서 옵니다. 하드코딩하거나 AI 에이전트에게 요청하지 마세요.
 
-Start with:
+---
 
-- `wiki/overview.md`
-- `wiki/syntheses/MVP-1 Tumbler Pick And Dispenser Alignment Plan.md`
-- `wiki/syntheses/GitHub Collaboration Task Breakdown.md`
-- `wiki/syntheses/ROS 2 Package Architecture.md`
+## 픽앤얼라인 실행 순서
 
-## PickAndAlign no-motion status
-
-`PickAndAlignActionServer` defaults to `execution_mode=no_motion`. It waits for a
-`PoseStamped` on `/jarvis/tumbler_dispenser/tumbler_pose`, requires
-`header.frame_id: base_link` by default, and computes side-grasp
-approach/grasp/lift poses for feedback/logging. The default `grasp_mode=side`
-returns `NO_MOTION_SIDE_GRASP_OK` after `DONE_NO_MOTION`. It does not call
-MoveIt, Doosan motion, or real RG2 hardware.
-`execution_mode=skeleton` is still available for the original `SKELETON_ONLY`
-contract, and `grasp_mode=vertical` keeps the earlier z-offset no-motion plan.
-
-The intended pick order now starts with an observation stage:
-
-```text
+```
 HOME
--> OBSERVE_CUP_POSE
--> DETECT_CUP
--> COMPUTE_SIDE_GRASP
--> PLAN_SIDE_GRASP
--> GRIPPER_OPEN
--> MOVE_APPROACH
--> MOVE_GRASP
--> GRIPPER_CLOSE
--> LIFT
--> DONE
+→ OBSERVE_CUP_POSE   (j1=0, j2=25, j3=65, j4=0, j5=135, j6=0)
+→ DETECT_CUP
+→ COMPUTE_SIDE_GRASP
+→ PLAN_SIDE_GRASP
+→ GRIPPER_OPEN
+→ MOVE_APPROACH
+→ MOVE_GRASP
+→ GRIPPER_CLOSE
+→ LIFT
+→ DONE
 ```
 
-`OBSERVE_CUP_POSE` is now handled by the supervised single-pick tool as a
-HOME-based joint target, because Cartesian observe IK produced confusing wrist
-solutions. The default sequence starts at HOME
-`j1=0, j2=0, j3=90, j4=0, j5=90, j6=0`, then moves to observe
-`j1=0, j2=25, j3=65, j4=0, j5=135, j6=0`. The positive `joint_2` observe
-target lifts the arm forward; `joint_5=135` is an operator-tunable camera
-direction candidate for seeing the cup/work area. This is not a calibrated
-camera pose guarantee.
+기본값은 `execution_mode=no_motion` — 실제 모션 명령 없이 계획만 수행합니다.
 
-Planning-only observe check:
+---
+
+## 하드웨어 값 정책
+
+`src/azas_bringup/config/calibration.yaml` 에서 `null` 또는 `확인 필요` 로 표시된 항목은  
+**실측 완료 전 절대 수정하지 않습니다.**
+
+미확정 항목: `EE_LINK`, `GROUP_NAME`, 카메라 토픽/프레임, 핸드-아이 변환,  
+`dispenser_outlet` 자세, RG2 명령 단위/범위, TCP 오프셋, 컵 치수, 작업 공간 경계
+
+---
+
+## 현장 투입 순서
 
 ```bash
-/home/ssu/Azas/tools/checks/check_observe_pose_planning_only.sh
+# ① 가상 Doosan 시작
+bash tools/run/run_doosan_virtual_m0609.sh
+
+# ② 드라이런 검증
+bash tools/run/run_robot_dryrun.sh
+
+# ③ 엄격 게이트 통과 (실제 모션 전 필수)
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed \
+  bash tools/checks/check_live_hardware_gates.sh
+
+# ④ 실제 로봇 모션
+bash tools/run/run_robot_real.sh
 ```
 
-Supervised observe/pick entrypoint:
+---
+
+## 그리퍼 서비스 현황
+
+| 서비스 | 타입 | 상태 |
+|--------|------|------|
+| `/jarvis/rg2/open` | `std_srvs/Trigger` | 드라이런: 가짜 서비스 / 실제: 미검증 |
+| `/jarvis/rg2/close` | `std_srvs/Trigger` | 드라이런: 가짜 서비스 / 실제: 미검증 |
+| `/jarvis/rg2/set_width` | `azas_interfaces/SetGripper` | 드라이런만 가능, 실제 RG2 미연결 |
+| `/azas/gripper/open_close` | `azas_interfaces/SetGripper` | Azas 내부 플레이스홀더, 실제 RG2 아님 |
+
+---
+
+## YOLO 탐지 상세
+
+- 대상 클래스: `cup`, `tumbler`, `bottle`
+- 선택 정책: bbox 면적이 가장 큰 객체
+- 직립 판단: `bbox_height / bbox_width >= 1.2` → 직립, `< 0.8` → 거부
+- 깊이: 중심 7×7 픽셀 중앙값
+- 깊이 스케일: `16UC1`/`mono16` → 0.001 m/mm, `32FC1` → 1.0 m
+- 거부 조건: 0, NaN, inf, 0.15 m 미만, 2.0 m 초과
+
+---
+
+## TF 디버그
 
 ```bash
-python3 tools/pick/run_supervised_real_single_cup_pick.py --help
-```
+# 가상 Doosan 시작
+ros2 launch dsr_bringup2 dsr_bringup2_moveit.launch.py \
+  model:=m0609 mode:=virtual host:=127.0.0.1 port:=12345
 
-Implementation files are organized under `tools/pick/`; root-level `tools/*.py`
-files are compatibility wrappers while older docs and teammate commands are
-migrated. See `tools/README.md` before adding new scripts.
-
-After an operator-approved observe pose is reached in a future batch, capture
-the cup scene with RealSense and export a detector frame:
-
-```bash
-ros2 launch realsense2_camera rs_align_depth_launch.py ...
-
-python3 tools/perception/export_grasp_frame.py \
-  --output /tmp/azas_grasp_frame \
-  --rgb-topic /camera/camera/color/image_raw \
-  --depth-topic /camera/camera/aligned_depth_to_color/image_raw \
-  --camera-info-topic /camera/camera/color/camera_info \
-  --timeout-sec 10
-
-python3 tools/perception/export_grasp_frame.py \
-  --output /tmp/azas_grasp_frame \
-  --rgb-topic /camera/camera/color/image_raw \
-  --depth-topic /camera/camera/aligned_depth_to_color/image_raw \
-  --camera-info-topic /camera/camera/color/camera_info \
-  --wait-for-bbox \
-  --timeout-sec 10
-```
-
-Current side grasp is a no-motion approximation. The
-`/jarvis/tumbler_dispenser/tumbler_pose` position is treated only as a cup
-reference pose, `grasp_height_offset_m` is an offset from that reference, and
-`side_grasp_qx/qy/qz/qw` is only a planning-only TCP quaternion candidate. The
-quaternion is normalized before use and remains a placeholder until measured.
-Side grasp is currently limited to upright cups only. The YOLO detector uses a
-simple bbox aspect-ratio heuristic before publishing a graspable detection:
-`bbox_height / bbox_width >= 1.2` publishes `detected:upright`,
-`< 0.8` publishes `rejected:lying_or_unknown`, and the middle band publishes
-`rejected:unknown_orientation`. This heuristic is only a fail-closed guard; it
-does not prove the cup axis, mouth direction, table contact, or grasp surface.
-The pose bridge refuses to publish `/jarvis/tumbler_dispenser/tumbler_pose` for
-non-upright statuses, and `/azas/pick_and_align` reports
-`CUP_ORIENTATION_NOT_UPRIGHT` or `CUP_ORIENTATION_UNKNOWN` if a rejected
-detection is observed instead of an upright pose.
-Before any real side grasp, measured hand-eye/base-camera TF, cup center/radius,
-table height, TCP quaternion, gripper width/force, collision scene/clearance,
-operator clearance, and e-stop readiness must be verified with hardware gates.
-Lying, upside-down, or ambiguous cups must be handled in a later perception step
-with mask/PCA/point-cloud pose estimation before real grasp planning.
-
-Planning-only side grasp check:
-
-```bash
-/home/ssu/Azas/tools/checks/check_side_grasp_planning_only.sh
-```
-
-Candidate sweep for planning-only side grasp feasibility:
-
-```bash
-python3 tools/pick/sweep_side_grasp_planning_candidates.py \
-  --planning-group manipulator \
-  --ee-link tool0 \
-  --cup-reference-x 0.42 \
-  --cup-reference-y -0.24 \
-  --cup-reference-z 0.05 \
-  --max-candidates 100
-```
-
-Planning-only means trajectory feasibility preparation/reporting only. When
-verified `planning_group` and `ee_link` are provided, `alignment_executor_node`
-constructs MoveItPy planning requests for approach, grasp, and lift poses and
-calls `PlanningComponent.plan()`. It is not real readiness, and
-`alignment_executor_node` keeps `allow_execute=false` by default.
-Current evidence points to `tool0` as the more relevant TCP candidate than the
-SRDF chain tip `link_6`, but the final TCP link/quaternion must still be
-measured. Planning success for a swept quaternion/axis/height candidate is only a
-feasibility signal; it is not proof of real cup contact, grip quality, or safe
-robot execution.
-
-No-motion action smoke:
-
-```bash
-/home/ssu/Azas/tools/smoke/smoke_pick_and_align_no_motion.sh
-```
-
-## TF debug dry-run
-
-Use `docs/tf_debug_checklist.md` when checking camera-to-base TF and tumbler pose wiring without commanding robot motion.
-
-The current detector selects one target cup-like object by:
-
-- class filter: `cup`, `tumbler`, or `bottle`
-- selection policy: largest bounding-box area
-- representative pixel: bbox center
-- orientation gate: upright-only bbox heuristic; non-upright or ambiguous
-  boxes are rejected before the pose bridge publishes a robot-frame pose
-- depth: median valid depth in a 7x7 center window
-- depth scale: `depth_scale_mode=auto` maps `16UC1`/`mono16` to `0.001`
-  meter-per-mm scale and `32FC1` to `1.0` meter scale
-- reject: zero, NaN, inf, `<0.15 m`, or `>2.0 m` depth
-
-The pose bridge publishes `/jarvis/tumbler_dispenser/tumbler_pose` only after TF
-conversion succeeds. The published `PoseStamped.header.frame_id` must be
-`base_link`; camera-frame poses must not be treated as robot-frame poses.
-Latest-TF fallback is a diagnostic aid for timestamp problems only; it is not
-real robot readiness evidence.
-
-Start virtual Doosan:
-
-```bash
-ros2 launch dsr_bringup2 dsr_bringup2_moveit.launch.py model:=m0609 mode:=virtual host:=127.0.0.1 port:=12345
-```
-
-Inspect TF and pose wiring:
-
-```bash
-mkdir -p /tmp/ros2_logs
-touch /tmp/ros2_logs/test_write
-export ROS_LOG_DIR=/tmp/ros2_logs
-source /opt/ros/humble/setup.bash
+# TF 확인
 ros2 run tf2_ros tf2_echo base_link camera_color_optical_frame
 ros2 run tf2_tools view_frames
-ros2 topic echo --once /camera/aligned_depth_to_color/image_raw | grep encoding
-ros2 topic list | grep -E "tf|tumbler|camera|yolo"
 ros2 topic echo /jarvis/tumbler_dispenser/tumbler_pose
 ```
 
+TF 체크리스트: `docs/tf_debug_checklist.md`
 
-## Connection-ready tumbler transfer
+---
 
-When camera and robot are connected, the intended path is:
-
-```text
-YOLO model /home/ssu/Downloads/best.pt
--> yolo_tumbler_detector_node
--> /azas/cup_detection
--> cup_detection_pose_bridge_node
--> /jarvis/tumbler_dispenser/tumbler_pose
--> tumbler_floor_place_node
--> RG2 open/close + Doosan move_line when hardware gates are explicitly enabled
-```
-
-Build both workspaces first:
+## 비-하드웨어 점검
 
 ```bash
-source /opt/ros/humble/setup.bash
-cd /home/ssu/Azas && colcon build --symlink-install
-cd /home/ssu/ros2_ws && colcon build --packages-select jarvis --symlink-install
+bash tools/checks/check_oss_stack.sh           # 패키지·런치·의존성 전체 점검
+bash tools/checks/verify_control_readiness.sh  # 제어 준비도 종합
+
+bash tools/smoke/smoke_pick_and_align_no_motion.sh  # 액션 스모크
+bash tools/smoke/smoke_control_path.sh              # 제어 경로 엔드투엔드
+bash tools/smoke/smoke_fake_hardware_path.sh        # 가짜 하드웨어 스모크
+bash tools/smoke/smoke_cocktail_dryrun_sequence.sh  # 칵테일 시퀀스 스모크
 ```
 
-Start RG2 services:
+---
 
-```bash
-source /opt/ros/humble/setup.bash
-source /home/ssu/ros2_ws/install/setup.bash
-ros2 launch jarvis rg2_trigger.launch.py ip:=192.168.1.1
-```
+## 참고 문서
 
-Start camera-driven dry-run transfer:
-
-```bash
-/home/ssu/Azas/tools/run/run_robot_dryrun.sh
-```
-
-Check whether the camera detector sees a cup or lid:
-
-```bash
-/home/ssu/Azas/tools/checks/check_robot_detection.sh
-```
-
-Only add real motion gates after camera detection, RG2 services, emergency stop, workspace bounds, and operator clearance are confirmed:
-
-```bash
-/home/ssu/Azas/tools/run/run_robot_real.sh
-```
-
-Live YOLO requires `ultralytics` and `torch` in the active Python environment.
-
-## OSS robot-control stack
-
-The open-source integration path is tracked in:
-
-- `docs/oss_robot_control_stack.md` - chosen stack, gates, and control path.
-- `docs/field_control_runbook.md` - terminal-by-terminal field procedure from virtual Doosan to dry-run gates.
-- `docs/simulation_and_connection_plan.md` - when to use simulation, camera-only checks, robot/RG2 no-motion checks, and real motion.
-- `docs/rviz_simulation_verification_2026-05-11.md` - current RViz simulation and dry-run controller evidence without robot hardware.
-- `docs/camera_connection_verification_2026-05-11.md` - current RealSense D435i connection, topic, depth, and detection evidence.
-- `docs/full_cocktail_workflow_plan.md` - full STT/recipe/cup/lid/dispenser/shake/pour workflow split into milestones.
-- `docs/dsr_deeptree_integration.md` - project demo source review and the Azas adapter surface.
-- `dependencies/ros2_sources.repos` - ROS 2 source candidates for disposable review workspaces.
-- `dependencies/dsr_deeptree_sources.repos` - pinned project demo source for review-only import.
-- `dependencies/python_optional_requirements.txt` - YOLO, Grounded-SAM/LangSAM, and STT Python candidates.
-- `tools/checks/check_oss_stack.sh` - non-hardware readiness check for packages, launch files, and optional imports.
-- `docs/control_readiness_audit.md` - current completion audit and remaining hardware gates.
-
-Run the non-hardware check after building Azas and `ros2_ws`:
-
-```bash
-/home/ssu/Azas/tools/checks/check_oss_stack.sh
-```
-
-Or run the full non-hardware verifier:
-
-```bash
-/home/ssu/Azas/tools/checks/verify_control_readiness.sh
-```
-
-Warnings mean an optional runtime path is unavailable; failures mean the robot-control stack is not ready for dry-run.
-
-Run the end-to-end non-hardware control smoke:
-
-```bash
-/home/ssu/Azas/tools/smoke/smoke_control_path.sh
-```
-
-This injects a fake `CupDetection`, verifies the pose bridge, and waits for the floor-place controller to publish `DONE` with `enable_hardware:=false`.
-
-Run the fake-hardware service call smoke:
-
-```bash
-/home/ssu/Azas/tools/smoke/smoke_fake_hardware_path.sh
-```
-
-This verifies `enable_hardware:=true` against fake Doosan `MoveLine` and fake RG2 Trigger services only.
-
-Current gripper service contract:
-
-| Service name | Service type | Provider | Fake/dry-run | Real hardware | Current status | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| `/jarvis/rg2/open` | `std_srvs/srv/Trigger` | `jarvis` RG2 trigger launch or `tools/fake_hardware_services.py` | Yes when provided by fake services | Not proven by Azas gates | Expected by floor-place launch | Existence/type does not prove RG2 actuation. |
-| `/jarvis/rg2/close` | `std_srvs/srv/Trigger` | `jarvis` RG2 trigger launch or `tools/fake_hardware_services.py` | Yes when provided by fake services | Not proven by Azas gates | Expected by floor-place launch | Existence/type does not prove RG2 actuation. |
-| `/jarvis/rg2/set_width` | `azas_interfaces/srv/SetGripper` | `tools/fake_hardware_services.py` in no-motion smoke; real adapter pending | Yes in fake smoke | Not connected | Explicit adapter required for real width/force control | Fake service logs requests and does not command real RG2. |
-| `/azas/gripper/open_close` | `azas_interfaces/srv/SetGripper` | `azas_gripper/rg2_gripper_node.py` | Placeholder only | No | Azas internal boundary | Not wired into `/jarvis/rg2/*`; not a real RG2 driver. |
-
-Fake service pass is not real RG2 readiness. Real RG2 use still requires separate
-hardware confirmation, operator clearance, unit/range verification, and a real
-adapter that is not implemented here.
-
-After starting the live dry-run bringup on the robot PC, check the field gates without commanding motion:
-
-```bash
-/home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
-```
-
-To decide what should be connected next without commanding motion:
-
-```bash
-/home/ssu/Azas/tools/checks/check_connection_stage.sh
-```
-
-For the full field no-motion report before any real robot run:
-
-```bash
-/home/ssu/Azas/tools/run/field_no_motion_report.sh
-```
-
-To see exactly which measured calibration/safety values still block real motion:
-
-```bash
-/home/ssu/Azas/tools/run/real_motion_measurement_report.sh
-```
-
-Use `STRICT=true` when every optional warning, including detection and RG2 service availability, should fail the gate.
-
-Before real robot motion, strict mode must pass and write the gate stamp accepted by `run_robot_real.sh`:
-
-```bash
-STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
-```
-
-To isolate camera depth projection:
-
-```bash
-/home/ssu/Azas/tools/checks/check_depth_projection_sample.sh
-```
-
-For a DSR-inspired cocktail task sequence without robot motion:
-
-```bash
-ros2 launch azas_bringup cocktail_dryrun.launch.py
-```
-
-For a non-hardware smoke test with fake cup/lid detections and a two-dispenser recipe:
-
-```bash
-/home/ssu/Azas/tools/smoke/smoke_cocktail_dryrun_sequence.sh
-```
-
-For field execution order, follow:
-
-```bash
-/home/ssu/Azas/tools/run/run_doosan_virtual_m0609.sh
-/home/ssu/Azas/tools/run/run_robot_dryrun.sh
-STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
-/home/ssu/Azas/tools/run/run_robot_real.sh
-```
-
-For the hardware connection decision, read `docs/simulation_and_connection_plan.md`. In short: do simulation/fake-hardware first, connect the camera before robot motion, then connect Doosan/RG2 for no-motion strict gates, and only then run real motion.
+| 문서 | 내용 |
+|------|------|
+| `COMMANDS.md` | 전체 명령어 빠른 참조 |
+| `CONTRIBUTING.md` | 브랜치 전략, 역할 분담, 커밋 컨벤션 |
+| `AGENTS.md` | AI 에이전트 규칙 (컵 좌표 파이프라인 포함) |
+| `docs/safety_checklist.md` | 실제 로봇 운용 안전 체크리스트 |
+| `docs/field_control_runbook.md` | 현장 터미널별 절차 |
+| `docs/simulation_and_connection_plan.md` | 시뮬·카메라·로봇 연결 판단 기준 |
+| `docs/tf_debug_checklist.md` | 카메라-베이스 TF 디버그 체크리스트 |
+| `docs/full_cocktail_workflow_plan.md` | 전체 칵테일 워크플로우 마일스톤 |
+| `docs/recovery_after_poweroff.md` | 전원 차단 후 복구 절차 |
