@@ -1,19 +1,4 @@
-build/
-install/
-log/
-
-__pycache__/
-*.py[cod]
-*.egg-info/
-
-.pytest_cache/
-.coverage
-
-.vscode/
-.idea/
-
-
-# ROS 2 / colcon
+# ROS 2 / colcon 빌드 산출물
 build/
 install/
 log/
@@ -23,19 +8,30 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.coverage
 
-# IDE / editor
+# IDE / 에디터
 .vscode/
 .idea/
+*.swp
+*~
 
 # OS
 .DS_Store
+Thumbs.db
 
-# Codex / local agent state
+# 로컬 AI 에이전트 상태 (커밋 불필요)
 .codex/
 .agents/
 .omx/
 
-# local logs / temp
+# 임시 파일
 *.log
 tmp/
+/tmp/
+
+# 모델 가중치 (용량 큰 파일 - LFS 사용 권장)
+*.pt
+*.pth
+*.onnx
+*.tflite

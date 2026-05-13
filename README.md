@@ -1,31 +1,39 @@
 # Azas
 
-ROS 2 Humble MVP-1 workspace for Doosan M0609 + OnRobot RG2 + depth vision.
+> **Doosan M0609 + OnRobot RG2 + RealSense D435i 기반 칵테일 로봇 (ROS 2 Humble)**  
+> 7인 협업 프로젝트 | MVP-1: 텀블러 감지 → RG2 픽업 → 디스펜서 정렬
 
-The authoritative project knowledge base is `wiki/`, compiled from the local course PDFs under `/home/ssu/Downloads/로봇`. Current repo scaffold must stay subordinate to that wiki.
-When implementation details are unclear, inspect `/home/ssu/Downloads/로봇/` directly before relying on summaries. STT work should follow `17차시(04.24)/31장 STT-로봇 연동.pdf` and `dsr_practice.zip` first.
+---
 
-Power-off recovery entrypoints: `docs/recovery_after_poweroff.md` and `docs/current_handoff_2026-05-11.md`.
-
-## MVP-1 scope
-
-```text
-random tumbler detection
--> RG2 grasp
--> align cup_mouth_center below a fixed dispenser_outlet
-```
-
-STT/LLM/VLA cocktail selection is post-MVP. It may choose user intent or a recipe later, but it must never generate robot coordinates, trajectories, collision decisions, calibration values, or safety decisions.
-
-## Workspace
+## 빠른 시작
 
 ```bash
 source /opt/ros/humble/setup.bash
+cd /home/ssu/Azas
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-## Packages
+전체 명령어 → **[COMMANDS.md](COMMANDS.md)** | 협업 가이드 → **[CONTRIBUTING.md](CONTRIBUTING.md)**
+
+---
+
+## MVP-1 목표
+
+```
+랜덤 위치 텀블러 감지
+  → RG2 사이드 그라스프
+  → cup_mouth_center를 dispenser_outlet 아래로 정렬
+```
+
+STT/LLM/VLA는 사용자 의도·레시피 선택만 담당합니다.  
+**로봇 좌표, 궤적, 충돌 판단, 캘리브레이션 값을 절대 생성하지 않습니다.**
+
+전원 차단 복구: `docs/recovery_after_poweroff.md` · `docs/current_handoff_2026-05-11.md`
+
+---
+
+## 패키지 구성
 
 - `azas_interfaces` - shared MVP messages, services, and `PickAndAlign.action`.
 - `azas_perception` - depth/CameraInfo ingestion, tumbler detection, pixel-to-3D projection.
@@ -90,13 +98,13 @@ camera pose guarantee.
 Planning-only observe check:
 
 ```bash
-/home/ssu/Azas/tools/check_observe_pose_planning_only.sh
+/home/ssu/Azas/tools/checks/check_observe_pose_planning_only.sh
 ```
 
 Supervised observe/pick entrypoint:
 
 ```bash
-python3 /home/ssu/Azas/tools/run_supervised_real_single_cup_pick.py --help
+python3 tools/pick/run_supervised_real_single_cup_pick.py --help
 ```
 
 Implementation files are organized under `tools/pick/`; root-level `tools/*.py`
@@ -109,14 +117,14 @@ the cup scene with RealSense and export a detector frame:
 ```bash
 ros2 launch realsense2_camera rs_align_depth_launch.py ...
 
-python3 tools/export_grasp_frame.py \
+python3 tools/perception/export_grasp_frame.py \
   --output /tmp/azas_grasp_frame \
   --rgb-topic /camera/camera/color/image_raw \
   --depth-topic /camera/camera/aligned_depth_to_color/image_raw \
   --camera-info-topic /camera/camera/color/camera_info \
   --timeout-sec 10
 
-python3 tools/export_grasp_frame.py \
+python3 tools/perception/export_grasp_frame.py \
   --output /tmp/azas_grasp_frame \
   --rgb-topic /camera/camera/color/image_raw \
   --depth-topic /camera/camera/aligned_depth_to_color/image_raw \
@@ -149,13 +157,13 @@ with mask/PCA/point-cloud pose estimation before real grasp planning.
 Planning-only side grasp check:
 
 ```bash
-/home/ssu/Azas/tools/check_side_grasp_planning_only.sh
+/home/ssu/Azas/tools/checks/check_side_grasp_planning_only.sh
 ```
 
 Candidate sweep for planning-only side grasp feasibility:
 
 ```bash
-python3 /home/ssu/Azas/tools/sweep_side_grasp_planning_candidates.py \
+python3 tools/pick/sweep_side_grasp_planning_candidates.py \
   --planning-group manipulator \
   --ee-link tool0 \
   --cup-reference-x 0.42 \
@@ -178,7 +186,7 @@ robot execution.
 No-motion action smoke:
 
 ```bash
-/home/ssu/Azas/tools/smoke_pick_and_align_no_motion.sh
+/home/ssu/Azas/tools/smoke/smoke_pick_and_align_no_motion.sh
 ```
 
 ## TF debug dry-run
@@ -257,19 +265,19 @@ ros2 launch jarvis rg2_trigger.launch.py ip:=192.168.1.1
 Start camera-driven dry-run transfer:
 
 ```bash
-/home/ssu/Azas/tools/run_robot_dryrun.sh
+/home/ssu/Azas/tools/run/run_robot_dryrun.sh
 ```
 
 Check whether the camera detector sees a cup or lid:
 
 ```bash
-/home/ssu/Azas/tools/check_robot_detection.sh
+/home/ssu/Azas/tools/checks/check_robot_detection.sh
 ```
 
 Only add real motion gates after camera detection, RG2 services, emergency stop, workspace bounds, and operator clearance are confirmed:
 
 ```bash
-/home/ssu/Azas/tools/run_robot_real.sh
+/home/ssu/Azas/tools/run/run_robot_real.sh
 ```
 
 Live YOLO requires `ultralytics` and `torch` in the active Python environment.
@@ -288,19 +296,19 @@ The open-source integration path is tracked in:
 - `dependencies/ros2_sources.repos` - ROS 2 source candidates for disposable review workspaces.
 - `dependencies/dsr_deeptree_sources.repos` - pinned project demo source for review-only import.
 - `dependencies/python_optional_requirements.txt` - YOLO, Grounded-SAM/LangSAM, and STT Python candidates.
-- `tools/check_oss_stack.sh` - non-hardware readiness check for packages, launch files, and optional imports.
+- `tools/checks/check_oss_stack.sh` - non-hardware readiness check for packages, launch files, and optional imports.
 - `docs/control_readiness_audit.md` - current completion audit and remaining hardware gates.
 
 Run the non-hardware check after building Azas and `ros2_ws`:
 
 ```bash
-/home/ssu/Azas/tools/check_oss_stack.sh
+/home/ssu/Azas/tools/checks/check_oss_stack.sh
 ```
 
 Or run the full non-hardware verifier:
 
 ```bash
-/home/ssu/Azas/tools/verify_control_readiness.sh
+/home/ssu/Azas/tools/checks/verify_control_readiness.sh
 ```
 
 Warnings mean an optional runtime path is unavailable; failures mean the robot-control stack is not ready for dry-run.
@@ -308,7 +316,7 @@ Warnings mean an optional runtime path is unavailable; failures mean the robot-c
 Run the end-to-end non-hardware control smoke:
 
 ```bash
-/home/ssu/Azas/tools/smoke_control_path.sh
+/home/ssu/Azas/tools/smoke/smoke_control_path.sh
 ```
 
 This injects a fake `CupDetection`, verifies the pose bridge, and waits for the floor-place controller to publish `DONE` with `enable_hardware:=false`.
@@ -316,7 +324,7 @@ This injects a fake `CupDetection`, verifies the pose bridge, and waits for the 
 Run the fake-hardware service call smoke:
 
 ```bash
-/home/ssu/Azas/tools/smoke_fake_hardware_path.sh
+/home/ssu/Azas/tools/smoke/smoke_fake_hardware_path.sh
 ```
 
 This verifies `enable_hardware:=true` against fake Doosan `MoveLine` and fake RG2 Trigger services only.
@@ -337,25 +345,25 @@ adapter that is not implemented here.
 After starting the live dry-run bringup on the robot PC, check the field gates without commanding motion:
 
 ```bash
-/home/ssu/Azas/tools/check_live_hardware_gates.sh
+/home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
 ```
 
 To decide what should be connected next without commanding motion:
 
 ```bash
-/home/ssu/Azas/tools/check_connection_stage.sh
+/home/ssu/Azas/tools/checks/check_connection_stage.sh
 ```
 
 For the full field no-motion report before any real robot run:
 
 ```bash
-/home/ssu/Azas/tools/field_no_motion_report.sh
+/home/ssu/Azas/tools/run/field_no_motion_report.sh
 ```
 
 To see exactly which measured calibration/safety values still block real motion:
 
 ```bash
-/home/ssu/Azas/tools/real_motion_measurement_report.sh
+/home/ssu/Azas/tools/run/real_motion_measurement_report.sh
 ```
 
 Use `STRICT=true` when every optional warning, including detection and RG2 service availability, should fail the gate.
@@ -363,13 +371,13 @@ Use `STRICT=true` when every optional warning, including detection and RG2 servi
 Before real robot motion, strict mode must pass and write the gate stamp accepted by `run_robot_real.sh`:
 
 ```bash
-STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
 ```
 
 To isolate camera depth projection:
 
 ```bash
-/home/ssu/Azas/tools/check_depth_projection_sample.sh
+/home/ssu/Azas/tools/checks/check_depth_projection_sample.sh
 ```
 
 For a DSR-inspired cocktail task sequence without robot motion:
@@ -381,16 +389,16 @@ ros2 launch azas_bringup cocktail_dryrun.launch.py
 For a non-hardware smoke test with fake cup/lid detections and a two-dispenser recipe:
 
 ```bash
-/home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.sh
+/home/ssu/Azas/tools/smoke/smoke_cocktail_dryrun_sequence.sh
 ```
 
 For field execution order, follow:
 
 ```bash
-/home/ssu/Azas/tools/run_doosan_virtual_m0609.sh
-/home/ssu/Azas/tools/run_robot_dryrun.sh
-STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh
-/home/ssu/Azas/tools/run_robot_real.sh
+/home/ssu/Azas/tools/run/run_doosan_virtual_m0609.sh
+/home/ssu/Azas/tools/run/run_robot_dryrun.sh
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
+/home/ssu/Azas/tools/run/run_robot_real.sh
 ```
 
 For the hardware connection decision, read `docs/simulation_and_connection_plan.md`. In short: do simulation/fake-hardware first, connect the camera before robot motion, then connect Doosan/RG2 for no-motion strict gates, and only then run real motion.

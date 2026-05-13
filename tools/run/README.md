@@ -1,0 +1,36 @@
+# tools/run/
+
+현장 실행 스크립트 모음입니다. 드라이런, 실제 모션, 복구 절차를 포함합니다.
+
+## 규칙
+
+- 실제 모션 스크립트는 `--enable-real-motion` 플래그와 확인 문구가 필수
+- 실제 모션은 기본적으로 1회성 실행 (자동 반복 금지)
+- MoveIt 플래닝 실패 시 Doosan 직접 명령으로 폴백 절대 금지
+- 그리퍼 명령은 관측 모션과 분리하여 명시적으로 처리
+
+## 현장 투입 순서
+
+```
+① run_doosan_virtual_m0609.sh   # 가상 로봇 시작
+② run_robot_dryrun.sh            # 드라이런 검증
+③ check_live_hardware_gates.sh   # 게이트 통과 (checks/ 참고)
+④ run_robot_real.sh              # 실제 모션
+```
+
+## 스크립트 목록
+
+| 스크립트 | 설명 |
+|----------|------|
+| `run_doosan_virtual_m0609.sh` | 가상 Doosan M0609 시작 |
+| `run_doosan_real_no_motion_m0609.sh` | 실제 Doosan 비-모션 연결 |
+| `run_robot_dryrun.sh` | 카메라 기반 드라이런 |
+| `run_robot_real.sh` | 실제 로봇 모션 실행 |
+| `run_code_only_cup_grasp_dryrun.sh` | 코드 전용 컵 픽 드라이런 |
+| `run_connected_robot_control.sh` | 연결 로봇 제어 통합 |
+| `run_supervised_observe_pose.py` | 감독 하에 관측 포즈 이동 |
+| `field_no_motion_report.sh` | 현장 비-모션 종합 보고서 |
+| `real_motion_measurement_report.sh` | 실측 캘리브레이션 보고서 |
+| `recovery_after_poweroff.sh` | 전원 차단 후 복구 |
+| `set_motion_hold.sh` | 모션 홀드 설정 |
+| `tmux_cup_pick_pipeline.sh` | tmux 멀티 터미널 파이프라인 |
