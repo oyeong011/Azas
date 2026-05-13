@@ -4,7 +4,9 @@ import rclpy
 from azas_interfaces.action import PickAndAlign
 from azas_interfaces.msg import CupDetection
 from azas_motion.alignment import (
+    ObservePoseConfig,
     SideGraspConfig,
+    compute_observe_pose,
     compute_no_motion_pick_plan,
     compute_side_grasp_plan,
 )
@@ -18,12 +20,16 @@ from std_srvs.srv import Trigger
 
 PDF_PICK_PLACE_STATES = (
     "HOME",
-    "pick_approach",
-    "pick",
-    "pick_approach",
-    "place_approach",
-    "place",
-    "place_approach",
+    "OBSERVE_CUP_POSE",
+    "DETECT_CUP",
+    "COMPUTE_SIDE_GRASP",
+    "PLAN_SIDE_GRASP",
+    "GRIPPER_OPEN",
+    "MOVE_APPROACH",
+    "MOVE_GRASP",
+    "GRIPPER_CLOSE",
+    "LIFT",
+    "DONE",
 )
 
 
@@ -47,6 +53,14 @@ class PickAndAlignActionServer(Node):
         self.declare_parameter("fake_gripper_close_service", "/jarvis/rg2/close")
         self.declare_parameter("call_fake_gripper_services", False)
         self.declare_parameter("grasp_mode", "side")
+        self.declare_parameter("observe_pose_x", 0.35)
+        self.declare_parameter("observe_pose_y", -0.25)
+        self.declare_parameter("observe_pose_z", 0.45)
+        self.declare_parameter("observe_qx", 0.0)
+        self.declare_parameter("observe_qy", 0.0)
+        self.declare_parameter("observe_qz", 0.0)
+        self.declare_parameter("observe_qw", 1.0)
+        self.declare_parameter("observe_frame", "base_link")
         self.declare_parameter("approach_z_offset_m", 0.10)
         self.declare_parameter("lift_z_offset_m", 0.12)
         self.declare_parameter("side_grasp_orientation_source", "parameter")
@@ -128,6 +142,28 @@ class PickAndAlignActionServer(Node):
 
     def _execute_no_motion(self, goal_handle):
         feedback = PickAndAlign.Feedback()
+        observe_detail = self._observe_pose_feedback_detail()
+        if observe_detail.startswith("invalid"):
+            return self._fail_result(
+                goal_handle,
+                "INVALID_OBSERVE_POSE_CONFIG",
+                f"{observe_detail}; no real robot motion was commanded",
+            )
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            "PLAN_OBSERVE_CUP_POSE_NO_MOTION",
+            observe_detail,
+        )
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            "DETECT_CUP_PENDING",
+            (
+                "OBSERVE_CUP_POSE is planning-only in this action; waiting for "
+                f"PoseStamped on {self.get_parameter('tumbler_pose_topic').value}"
+            ),
+        )
         self._publish_feedback(
             goal_handle,
             feedback,
@@ -420,6 +456,27 @@ class PickAndAlignActionServer(Node):
         if status.startswith("rejected:") or status.startswith("detected:"):
             return "CUP_ORIENTATION_NOT_UPRIGHT"
         return ""
+
+    def _observe_pose_feedback_detail(self) -> str:
+        try:
+            pose = compute_observe_pose(
+                ObservePoseConfig(
+                    x=float(self.get_parameter("observe_pose_x").value),
+                    y=float(self.get_parameter("observe_pose_y").value),
+                    z=float(self.get_parameter("observe_pose_z").value),
+                    qx=float(self.get_parameter("observe_qx").value),
+                    qy=float(self.get_parameter("observe_qy").value),
+                    qz=float(self.get_parameter("observe_qz").value),
+                    qw=float(self.get_parameter("observe_qw").value),
+                )
+            )
+        except ValueError as exc:
+            return f"invalid OBSERVE_CUP_POSE config: {exc}"
+        frame_id = str(self.get_parameter("observe_frame").value).strip() or "base_link"
+        return (
+            f"OBSERVE_CUP_POSE candidate frame={frame_id} {self._pose_xyz(pose)} "
+            f"{self._pose_quat(pose)}; planning-only/no-motion, no MoveIt execute"
+        )
 
 
 def main(args=None):

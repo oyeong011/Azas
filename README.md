@@ -62,6 +62,65 @@ MoveIt, Doosan motion, or real RG2 hardware.
 `execution_mode=skeleton` is still available for the original `SKELETON_ONLY`
 contract, and `grasp_mode=vertical` keeps the earlier z-offset no-motion plan.
 
+The intended pick order now starts with an observation stage:
+
+```text
+HOME
+-> OBSERVE_CUP_POSE
+-> DETECT_CUP
+-> COMPUTE_SIDE_GRASP
+-> PLAN_SIDE_GRASP
+-> GRIPPER_OPEN
+-> MOVE_APPROACH
+-> MOVE_GRASP
+-> GRIPPER_CLOSE
+-> LIFT
+-> DONE
+```
+
+`OBSERVE_CUP_POSE` is a high camera/hand viewpoint candidate, not an automatic
+robot command. The default candidate is `base_link` pose
+`x=0.35, y=-0.25, z=0.45, q=(0,0,0,1)`, planned with
+`planning_group=manipulator` and `ee_link=tool0`. The action reports
+`PLAN_OBSERVE_CUP_POSE_NO_MOTION` and `DETECT_CUP_PENDING` before waiting for
+the tumbler pose, but it does not execute the observe move.
+
+Planning-only observe check:
+
+```bash
+/home/ssu/Azas/tools/check_observe_pose_planning_only.sh
+```
+
+Supervised observe entrypoint defaults to planning-only. Real motion remains
+refused in this batch even if the explicit flags are provided, because the
+accepted MoveIt execution contract and operator clearance are not implemented:
+
+```bash
+python3 /home/ssu/Azas/tools/run_supervised_observe_pose.py
+```
+
+After an operator-approved observe pose is reached in a future batch, capture
+the cup scene with RealSense and export a detector frame:
+
+```bash
+ros2 launch realsense2_camera rs_align_depth_launch.py ...
+
+python3 tools/export_grasp_frame.py \
+  --output /tmp/azas_grasp_frame \
+  --rgb-topic /camera/camera/color/image_raw \
+  --depth-topic /camera/camera/aligned_depth_to_color/image_raw \
+  --camera-info-topic /camera/camera/color/camera_info \
+  --timeout-sec 10
+
+python3 tools/export_grasp_frame.py \
+  --output /tmp/azas_grasp_frame \
+  --rgb-topic /camera/camera/color/image_raw \
+  --depth-topic /camera/camera/aligned_depth_to_color/image_raw \
+  --camera-info-topic /camera/camera/color/camera_info \
+  --wait-for-bbox \
+  --timeout-sec 10
+```
+
 Current side grasp is a no-motion approximation. The
 `/jarvis/tumbler_dispenser/tumbler_pose` position is treated only as a cup
 reference pose, `grasp_height_offset_m` is an offset from that reference, and

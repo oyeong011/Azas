@@ -1,7 +1,12 @@
 import json
 
 import rclpy
-from azas_motion.alignment import SideGraspConfig, compute_side_grasp_plan
+from azas_motion.alignment import (
+    ObservePoseConfig,
+    SideGraspConfig,
+    compute_observe_pose,
+    compute_side_grasp_plan,
+)
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
@@ -9,12 +14,16 @@ from rclpy.node import Node
 
 PDF_PICK_PLACE_STATES = (
     "HOME",
-    "pick_approach",
-    "pick",
-    "pick_approach",
-    "place_approach",
-    "place",
-    "place_approach",
+    "OBSERVE_CUP_POSE",
+    "DETECT_CUP",
+    "COMPUTE_SIDE_GRASP",
+    "PLAN_SIDE_GRASP",
+    "GRIPPER_OPEN",
+    "MOVE_APPROACH",
+    "MOVE_GRASP",
+    "GRIPPER_CLOSE",
+    "LIFT",
+    "DONE",
 )
 
 
@@ -38,6 +47,15 @@ class AlignmentExecutorNode(Node):
         self.declare_parameter("lift_pose_topic", "")
         self.declare_parameter("planning_timeout_sec", 5.0)
         self.declare_parameter("use_fake_side_grasp_plan", True)
+        self.declare_parameter("use_observe_pose_plan", False)
+        self.declare_parameter("observe_pose_x", 0.35)
+        self.declare_parameter("observe_pose_y", -0.25)
+        self.declare_parameter("observe_pose_z", 0.45)
+        self.declare_parameter("observe_qx", 0.0)
+        self.declare_parameter("observe_qy", 0.0)
+        self.declare_parameter("observe_qz", 0.0)
+        self.declare_parameter("observe_qw", 1.0)
+        self.declare_parameter("observe_frame", "base_link")
         self.declare_parameter("cup_reference_x", 0.32)
         self.declare_parameter("cup_reference_y", -0.22)
         self.declare_parameter("cup_reference_z", 0.05)
@@ -46,6 +64,7 @@ class AlignmentExecutorNode(Node):
         self.declare_parameter("side_grasp_qz", 0.0)
         self.declare_parameter("side_grasp_qw", 1.0)
         self.declare_parameter("side_approach_axis", "-x")
+        self._observe_pose = None
         self._approach_pose = None
         self._grasp_pose = None
         self._lift_pose = None
@@ -53,6 +72,7 @@ class AlignmentExecutorNode(Node):
         self._planning_component = None
         self._planning_attempted = False
         self._configure_pose_subscriptions()
+        self._configure_observe_pose_plan()
         self._configure_fake_side_grasp_plan()
         self.get_logger().warn(
             "AlignmentExecutorNode is planning-only by default. It does not command "
@@ -116,6 +136,46 @@ class AlignmentExecutorNode(Node):
                 "fake_side_grasp_plan",
                 "ready",
                 warning=plan.warning,
+                real_readiness=False,
+            )
+        )
+
+    def _configure_observe_pose_plan(self) -> None:
+        if not bool(self.get_parameter("use_observe_pose_plan").value):
+            return
+        try:
+            pose = compute_observe_pose(
+                ObservePoseConfig(
+                    x=float(self.get_parameter("observe_pose_x").value),
+                    y=float(self.get_parameter("observe_pose_y").value),
+                    z=float(self.get_parameter("observe_pose_z").value),
+                    qx=float(self.get_parameter("observe_qx").value),
+                    qy=float(self.get_parameter("observe_qy").value),
+                    qz=float(self.get_parameter("observe_qz").value),
+                    qw=float(self.get_parameter("observe_qw").value),
+                )
+            )
+        except ValueError as exc:
+            self.get_logger().error(
+                self._planning_log(
+                    "observe_pose_plan",
+                    "failed",
+                    error=str(exc),
+                    real_readiness=False,
+                )
+            )
+            return
+        frame_id = (
+            str(self.get_parameter("observe_frame").value).strip()
+            or str(self.get_parameter("base_frame").value).strip()
+            or "base_link"
+        )
+        self._observe_pose = self._pose_stamped(pose, frame_id)
+        self.get_logger().warn(
+            self._planning_log(
+                "OBSERVE_CUP_POSE",
+                "ready",
+                pose=self._pose_dict(self._observe_pose),
                 real_readiness=False,
             )
         )
@@ -184,6 +244,19 @@ class AlignmentExecutorNode(Node):
                         "source /opt/ros/humble/setup.bash; "
                         "source /home/ssu/Azas/install/setup.bash"
                     ),
+                    real_readiness=False,
+                )
+            )
+            return
+
+        if self._observe_pose is not None:
+            self._planning_attempted = True
+            result = self._plan_pose("observe", self._observe_pose, planning_group, ee_link)
+            self.get_logger().warn(
+                self._planning_log(
+                    "observe_pose_planning_only_summary",
+                    "complete",
+                    results=[result],
                     real_readiness=False,
                 )
             )
@@ -289,6 +362,20 @@ class AlignmentExecutorNode(Node):
         return msg
 
     @staticmethod
+    def _pose_dict(pose_msg: PoseStamped) -> dict:
+        pose = pose_msg.pose
+        return {
+            "frame_id": pose_msg.header.frame_id,
+            "x": pose.position.x,
+            "y": pose.position.y,
+            "z": pose.position.z,
+            "qx": pose.orientation.x,
+            "qy": pose.orientation.y,
+            "qz": pose.orientation.z,
+            "qw": pose.orientation.w,
+        }
+
+    @staticmethod
     def _planning_log(event: str, status: str, **fields) -> str:
         payload = {"event": event, "status": status, "planning_only": True}
         payload.update(fields)
@@ -298,6 +385,12 @@ class AlignmentExecutorNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = AlignmentExecutorNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        try:
+            if rclpy.ok():
+                rclpy.shutdown()
+        except Exception:
+            pass

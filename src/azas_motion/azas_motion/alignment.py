@@ -43,6 +43,17 @@ class SideGraspPlan:
     warning: str
 
 
+@dataclass(frozen=True)
+class ObservePoseConfig:
+    x: float = 0.35
+    y: float = -0.25
+    z: float = 0.45
+    qx: float = 0.0
+    qy: float = 0.0
+    qz: float = 0.0
+    qw: float = 1.0
+
+
 def compute_alignment_tcp_pose(
     dispenser_outlet: Point,
     offset_tcp_to_cup_mouth: Vector3,
@@ -151,6 +162,33 @@ def compute_side_grasp_plan(
         approach_distance_m=approach_distance_m,
         warning=warning,
     )
+
+
+def compute_observe_pose(config: ObservePoseConfig) -> Pose:
+    """Return a candidate high observation pose; planning-only until operator approval."""
+    values = (config.x, config.y, config.z, config.qx, config.qy, config.qz, config.qw)
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("observe pose values must be finite")
+    if config.z <= 0.0:
+        raise ValueError("observe_pose_z must be positive")
+    norm = math.sqrt(
+        config.qx * config.qx
+        + config.qy * config.qy
+        + config.qz * config.qz
+        + config.qw * config.qw
+    )
+    if norm == 0.0:
+        raise ValueError("observe pose quaternion norm must be non-zero")
+
+    pose = Pose()
+    pose.position.x = config.x
+    pose.position.y = config.y
+    pose.position.z = config.z
+    pose.orientation.x = config.qx / norm
+    pose.orientation.y = config.qy / norm
+    pose.orientation.z = config.qz / norm
+    pose.orientation.w = config.qw / norm
+    return pose
 
 
 def _validate_side_grasp_config(config: SideGraspConfig) -> None:
