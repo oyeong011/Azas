@@ -19,7 +19,8 @@ setup(
     entry_points={
         "console_scripts": [
             "alignment_executor_node = azas_motion.alignment_executor_node:main",
+            "dispenser_sequence_preview_node = azas_motion.dispenser_sequence_preview_node:main",
+            "side_grasp_ik_preview_node = azas_motion.side_grasp_ik_preview_node:main",
         ],
     },
 )
-

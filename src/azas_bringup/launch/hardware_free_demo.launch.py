@@ -1,8 +1,7 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
-from launch.conditions import IfCondition, UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -11,43 +10,40 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     selected_dispenser_id = LaunchConfiguration("selected_dispenser_id")
     use_rviz = LaunchConfiguration("use_rviz")
+    use_robot_urdf = LaunchConfiguration("use_robot_urdf")
+    enable_ik_preview = LaunchConfiguration("enable_ik_preview")
     run_live_stt = LaunchConfiguration("run_live_stt")
+    run_recipe_mapper = LaunchConfiguration("run_recipe_mapper")
     use_llm = LaunchConfiguration("use_llm")
     cup_detection_topic = LaunchConfiguration("cup_detection_topic")
     tumbler_pose_topic = LaunchConfiguration("tumbler_pose_topic")
+    frame_id = LaunchConfiguration("frame_id")
+    robot_color = LaunchConfiguration("robot_color")
+    rviz_config = LaunchConfiguration("rviz_config")
 
-    scene_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution([FindPackageShare("jarvis"), "launch", "tumbler_dispenser_scene.launch.py"])
-        ),
-        launch_arguments={
-            "use_rviz": use_rviz,
-            "selected_dispenser_id": selected_dispenser_id,
-        }.items(),
-    )
-
-    floor_place_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution([FindPackageShare("jarvis"), "launch", "tumbler_floor_place.launch.py"])
-        ),
-        launch_arguments={
-            "selected_dispenser_id": selected_dispenser_id,
-            "use_tumbler_pose_topic": "true",
-            "tumbler_pose_topic": tumbler_pose_topic,
-            "allow_demo_tumbler_position_fallback": "false",
-            "tumbler_pose_wait_timeout": LaunchConfiguration("tumbler_pose_wait_timeout"),
-            "enable_hardware": "false",
-            "hardware_confirm": "",
-            "allow_service_control_without_moveit": "false",
-            "execution_stage": LaunchConfiguration("execution_stage"),
-        }.items(),
-    )
+    robot_description = {
+        "robot_description": Command(
+            [
+                FindExecutable(name="xacro"),
+                " ",
+                PathJoinSubstitution(
+                    [FindPackageShare("dsr_description2"), "xacro", "m0609.urdf.xacro"]
+                ),
+                " color:=",
+                robot_color,
+                " simple:=true",
+            ]
+        )
+    }
 
     return LaunchDescription(
         [
             DeclareLaunchArgument("selected_dispenser_id", default_value="2"),
             DeclareLaunchArgument("use_rviz", default_value="true"),
+            DeclareLaunchArgument("use_robot_urdf", default_value="true"),
+            DeclareLaunchArgument("enable_ik_preview", default_value="true"),
             DeclareLaunchArgument("run_live_stt", default_value="false"),
+            DeclareLaunchArgument("run_recipe_mapper", default_value="false"),
             DeclareLaunchArgument("use_llm", default_value="false"),
             DeclareLaunchArgument("enable_llm", default_value="false"),
             DeclareLaunchArgument("llm_model", default_value="gpt-4o-mini"),
@@ -56,8 +52,6 @@ def generate_launch_description():
             DeclareLaunchArgument("stt_topic", default_value="/stt_result"),
             DeclareLaunchArgument("cup_detection_topic", default_value="/azas/demo/cup_detection"),
             DeclareLaunchArgument("tumbler_pose_topic", default_value="/azas/demo/tumbler_pose"),
-            DeclareLaunchArgument("tumbler_pose_wait_timeout", default_value="8.0"),
-            DeclareLaunchArgument("execution_stage", default_value="full"),
             DeclareLaunchArgument("frame_id", default_value="base_link"),
             DeclareLaunchArgument("confidence", default_value="0.95"),
             DeclareLaunchArgument("grasp_x", default_value="0.42"),
@@ -66,7 +60,17 @@ def generate_launch_description():
             DeclareLaunchArgument("mouth_x", default_value="0.42"),
             DeclareLaunchArgument("mouth_y", default_value="-0.24"),
             DeclareLaunchArgument("mouth_z", default_value="0.22"),
-            scene_launch,
+            DeclareLaunchArgument("robot_color", default_value="white"),
+            DeclareLaunchArgument("planning_group", default_value="manipulator"),
+            DeclareLaunchArgument("ee_link", default_value="tool0"),
+            DeclareLaunchArgument("planning_timeout_sec", default_value="1.0"),
+            DeclareLaunchArgument("loop_preview", default_value="false"),
+            DeclareLaunchArgument(
+                "rviz_config",
+                default_value=PathJoinSubstitution(
+                    [FindPackageShare("azas_bringup"), "rviz", "azas_dispenser_sequence.rviz"]
+                ),
+            ),
             Node(
                 package="azas_voice",
                 executable="stt_node",
@@ -81,7 +85,7 @@ def generate_launch_description():
                 name="recipe_mapper_node",
                 output="screen",
                 parameters=[{"stt_topic": LaunchConfiguration("stt_topic")}],
-                condition=UnlessCondition(use_llm),
+                condition=IfCondition(run_recipe_mapper),
             ),
             Node(
                 package="azas_voice",
@@ -107,7 +111,7 @@ def generate_launch_description():
                 parameters=[
                     {
                         "output_topic": cup_detection_topic,
-                        "frame_id": LaunchConfiguration("frame_id"),
+                        "frame_id": frame_id,
                         "confidence": ParameterValue(LaunchConfiguration("confidence"), value_type=float),
                         "publish_once": False,
                         "grasp_x": ParameterValue(LaunchConfiguration("grasp_x"), value_type=float),
@@ -129,11 +133,61 @@ def generate_launch_description():
                         "input_topic": cup_detection_topic,
                         "output_topic": tumbler_pose_topic,
                         "min_confidence": ParameterValue(LaunchConfiguration("confidence"), value_type=float),
-                        "target_frame": LaunchConfiguration("frame_id"),
+                        "target_frame": frame_id,
                         "require_tf": False,
                     }
                 ],
             ),
-            TimerAction(period=2.0, actions=[floor_place_launch]),
+            Node(
+                package="azas_motion",
+                executable="dispenser_sequence_preview_node",
+                name="dispenser_sequence_preview_node",
+                output="screen",
+                parameters=[
+                    {
+                        "cup_pose_topic": tumbler_pose_topic,
+                        "frame_id": frame_id,
+                        "selected_dispenser_id": ParameterValue(
+                            selected_dispenser_id, value_type=int
+                        ),
+                    }
+                ],
+            ),
+            Node(
+                package="robot_state_publisher",
+                executable="robot_state_publisher",
+                name="m0609_robot_state_publisher",
+                output="screen",
+                parameters=[robot_description],
+                condition=IfCondition(use_robot_urdf),
+            ),
+            Node(
+                package="azas_motion",
+                executable="side_grasp_ik_preview_node",
+                name="side_grasp_ik_preview_node",
+                output="screen",
+                parameters=[
+                    {
+                        "plan_topic": "/azas/dispenser_sequence/plan",
+                        "planning_group": LaunchConfiguration("planning_group"),
+                        "ee_link": LaunchConfiguration("ee_link"),
+                        "planning_timeout_sec": ParameterValue(
+                            LaunchConfiguration("planning_timeout_sec"), value_type=float
+                        ),
+                        "loop_preview": ParameterValue(
+                            LaunchConfiguration("loop_preview"), value_type=bool
+                        ),
+                    }
+                ],
+                condition=IfCondition(enable_ik_preview),
+            ),
+            Node(
+                package="rviz2",
+                executable="rviz2",
+                name="rviz2",
+                arguments=["-d", rviz_config],
+                condition=IfCondition(use_rviz),
+                output="screen",
+            ),
         ]
     )
