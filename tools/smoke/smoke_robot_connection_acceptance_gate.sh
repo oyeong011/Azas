@@ -15,7 +15,7 @@ RUN_CUP_STABILITY=false \
 RUN_HAND_EYE=false \
 RUN_COMPLETION_AUDIT=false \
 REPORT=/tmp/azas_smoke_robot_connection_acceptance_report.txt \
-/home/ssu/Azas/tools/robot_connection_acceptance.sh >"${OUT}" 2>"${ERR}"
+/home/ssu/Azas/tools/checks/robot_connection_acceptance.sh >"${OUT}" 2>"${ERR}"
 status=$?
 set -e
 

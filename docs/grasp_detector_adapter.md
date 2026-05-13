@@ -12,7 +12,7 @@ Export one RealSense/YOLO frame:
 ```bash
 source /opt/ros/humble/setup.bash
 source /home/ssu/Azas/install/setup.bash
-python3 /home/ssu/Azas/tools/export_grasp_frame.py \
+python3 /home/ssu/Azas/tools/perception/export_grasp_frame.py \
   --output-dir /tmp/azas_grasp_frame \
   --rgb-topic /camera/color/image_raw \
   --depth-topic /camera/aligned_depth_to_color/image_raw \
@@ -84,6 +84,24 @@ The pose is camera-frame 6D grasp pose. Azas must still transform it to
 `base_link`, apply workspace and collision checks, run MoveIt planning-only, and
 select a supervised candidate before any real pick trial.
 
+## Optional GPD ROS Adapter
+
+`gpd_grasp_adapter_node` is an optional boundary for external workspaces that
+already provide `gpd_ros/msg/GraspConfigList`. Azas does not list `gpd_ros` as a
+required ROS dependency because the known `gpd_ros` package is ROS1/catkin, not
+a ROS 2 Humble package.
+
+The adapter publishes only the selected grasp candidate pose:
+
+```text
+/azas/gpd/grasp_pose  geometry_msgs/PoseStamped
+```
+
+This topic is not `/azas/cup_detection` and must not be remapped into the cup
+pose bridge. A GPD grasp pose is not a verified `cup_mouth_center`; it still
+requires TF, workspace, collision, and planning-only gates before any motion
+path can consume it.
+
 Current `azas_interfaces/msg/GraspCandidate` has no `width_m` or
 `collision_score` fields. Until the message is extended, bridge nodes should
 preserve detector width/collision metadata in `status` and keep the raw JSON as
@@ -92,7 +110,7 @@ evidence.
 Validate the exported frame and optional candidates:
 
 ```bash
-python3 /home/ssu/Azas/tools/check_grasp_adapter_contract.py \
+python3 /home/ssu/Azas/tools/checks/check_grasp_adapter_contract.py \
   --frame-dir /tmp/azas_grasp_frame \
   --candidates-json /tmp/azas_grasp_frame/grasp_candidates.json
 ```

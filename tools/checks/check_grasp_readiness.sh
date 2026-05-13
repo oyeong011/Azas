@@ -35,21 +35,21 @@ run_step() {
   fi
 }
 
-run_step "depth projection sample" "${ROOT}/tools/check_depth_projection_sample.sh"
-run_step "cup detection stability" "${ROOT}/tools/check_detection_stability.sh" --expect-class "${EXPECT_CLASS}"
+run_step "depth projection sample" "${ROOT}/tools/checks/check_depth_projection_sample.sh"
+run_step "cup detection stability" "${ROOT}/tools/checks/check_detection_stability.sh" --expect-class "${EXPECT_CLASS}"
 
 if [[ -n "${CAMERA_FRAME}" ]]; then
   run_step "camera-to-base TF readiness" env \
     BASE_FRAME="${BASE_FRAME}" CAMERA_FRAME="${CAMERA_FRAME}" ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG}" \
-    "${ROOT}/tools/check_hand_eye_readiness.sh"
+    "${ROOT}/tools/checks/check_hand_eye_readiness.sh"
 else
   run_step "camera-to-base TF readiness" env \
     BASE_FRAME="${BASE_FRAME}" ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG}" \
-    "${ROOT}/tools/check_hand_eye_readiness.sh"
+    "${ROOT}/tools/checks/check_hand_eye_readiness.sh"
 fi
 
 run_step "connection/service/config stage" env \
-  ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG}" "${ROOT}/tools/check_connection_stage.sh"
+  ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG}" "${ROOT}/tools/checks/check_connection_stage.sh"
 
 echo
 echo "[Azas] Result: failures=${failures}"

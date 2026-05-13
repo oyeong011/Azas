@@ -17,7 +17,7 @@ TUMBLER_POSE_TOPIC="${TUMBLER_POSE_TOPIC:-/jarvis/tumbler_dispenser/tumbler_pose
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"
 STRICT="${STRICT:-false}"
 GATE_STAMP="${GATE_STAMP:-/tmp/azas_live_hardware_gates_passed}"
-REAL_MOTION_CONFIG_CHECK="${REAL_MOTION_CONFIG_CHECK:-/home/ssu/Azas/tools/check_real_motion_config.sh}"
+REAL_MOTION_CONFIG_CHECK="${REAL_MOTION_CONFIG_CHECK:-/home/ssu/Azas/tools/checks/check_real_motion_config.sh}"
 ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG:---no-daemon}"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-/tmp/azas_ros_logs}"
 
@@ -225,7 +225,7 @@ fi
 
 if [[ "${depth_topic_ok}" == "true" && "${camera_info_topic_ok}" == "true" ]]; then
   if DEPTH_TOPIC="${DEPTH_TOPIC}" CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC}" TIMEOUT=8.0 \
-    /home/ssu/Azas/tools/check_depth_projection_sample.sh >/tmp/azas_live_gate_depth_projection.txt 2>/tmp/azas_live_gate_depth_projection.err; then
+    /home/ssu/Azas/tools/checks/check_depth_projection_sample.sh >/tmp/azas_live_gate_depth_projection.txt 2>/tmp/azas_live_gate_depth_projection.err; then
     pass "depth projection sample"
     sed -n '1,20p' /tmp/azas_live_gate_depth_projection.txt
   else

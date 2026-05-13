@@ -56,11 +56,11 @@ assert_log_contains() {
 
 echo "[Azas] Starting fake hardware services"
 if [[ -n "${SERVICE_PREFIX}" ]]; then
-  python3 /home/ssu/Azas/tools/fake_hardware_services.py \
+  python3 /home/ssu/Azas/tools/smoke/fake_hardware_services.py \
     --ros-args -p service_prefix:="${SERVICE_PREFIX}" \
     >"${FAKE_LOG_FILE}" 2>&1 &
 else
-  python3 /home/ssu/Azas/tools/fake_hardware_services.py \
+  python3 /home/ssu/Azas/tools/smoke/fake_hardware_services.py \
     >"${FAKE_LOG_FILE}" 2>&1 &
 fi
 FAKE_PID=$!

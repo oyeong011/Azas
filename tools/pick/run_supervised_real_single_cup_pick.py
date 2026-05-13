@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Supervised one-shot real cup side-pick gate.
 
-This script prepares exactly one cup side pick from a live or manual base_link
-cup reference pose. It refuses real motion unless the explicit real-motion gates
-are present. When enabled, it plans approach/grasp/lift with MoveItPy and sends
-only successful plan trajectories to MoveIt ExecuteTrajectory.
+This script prepares exactly one cup side pick from the live base_link tumbler
+pose pipeline. It refuses real motion unless the explicit real-motion gates are
+present. When enabled, it plans approach/grasp/lift with MoveItPy and sends only
+successful plan trajectories to MoveIt ExecuteTrajectory.
 """
 
 from __future__ import annotations
@@ -42,11 +42,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enable-real-motion", action="store_true")
     parser.add_argument("--confirm", default="")
     parser.add_argument("--one-shot", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--use-live-pose", type=str_to_bool, default=False)
+    parser.add_argument("--use-live-pose", type=str_to_bool, default=True)
     parser.add_argument("--tumbler-pose-topic", default="/jarvis/tumbler_dispenser/tumbler_pose")
-    parser.add_argument("--cup-reference-x", type=float, default=None)
-    parser.add_argument("--cup-reference-y", type=float, default=None)
-    parser.add_argument("--cup-reference-z", type=float, default=None)
     parser.add_argument("--planning-group", default="manipulator")
     parser.add_argument("--ee-link", default="tool0")
     parser.add_argument("--base-frame", default="base_link")
@@ -490,25 +487,13 @@ def rclpy_action_names_and_types() -> list[str]:
 
 def read_cup_pose(args: argparse.Namespace) -> dict[str, float] | None:
     print_stage("WAIT_OR_READ_CUP_POSE", "base_link pose only")
-    if args.use_live_pose:
-        pose = read_live_pose(args.tumbler_pose_topic)
-        if pose is None:
-            return None
-        print(f"[OK] live pose: {pose}")
-        return pose
-    if None in (args.cup_reference_x, args.cup_reference_y, args.cup_reference_z):
-        print("[FAIL] provide --use-live-pose true or --cup-reference-x/y/z")
+    if not args.use_live_pose:
+        print("[FAIL] this real/supervised entrypoint only accepts live tumbler pose")
         return None
-    pose = {
-        "frame_id": args.base_frame,
-        "x": float(args.cup_reference_x),
-        "y": float(args.cup_reference_y),
-        "z": float(args.cup_reference_z),
-    }
-    if pose["frame_id"] != "base_link":
-        print(f"[FAIL] frame_id must be base_link, got {pose['frame_id']!r}")
+    pose = read_live_pose(args.tumbler_pose_topic)
+    if pose is None:
         return None
-    print(f"[OK] manual cup reference: {pose}")
+    print(f"[OK] live pose: {pose}")
     return pose
 
 

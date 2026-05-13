@@ -95,17 +95,17 @@ file_exists /home/ssu/Azas/dependencies/dsr_deeptree_sources.repos "DSR_DeepTree
 file_exists /home/ssu/Azas/docs/dsr_deeptree_integration.md "DSR_DeepTree integration note"
 file_exists /home/ssu/Azas/docs/field_execution_commands.md "Field execution command sheet"
 file_exists /home/ssu/Azas/src/azas_task_manager/azas_task_manager/cocktail_dryrun_sequence_node.py "Cocktail dry-run sequence node"
-file_exists /home/ssu/Azas/tools/verify_control_readiness.sh "Non-hardware verifier"
-file_exists /home/ssu/Azas/tools/field_no_motion_report.sh "Field no-motion report"
-file_exists /home/ssu/Azas/tools/explain_real_robot_blockers.sh "Real robot blocker explainer"
-file_exists /home/ssu/Azas/tools/run_doosan_real_no_motion_m0609.sh "Doosan real no-motion bringup entrypoint"
-file_exists /home/ssu/Azas/tools/run_connected_robot_control.sh "Connected robot control orchestration entrypoint"
-file_exists /home/ssu/Azas/tools/run_robot_real.sh "Real-motion gated entrypoint"
+file_exists /home/ssu/Azas/tools/checks/verify_control_readiness.sh "Non-hardware verifier"
+file_exists /home/ssu/Azas/tools/run/field_no_motion_report.sh "Field no-motion report"
+file_exists /home/ssu/Azas/tools/checks/explain_real_robot_blockers.sh "Real robot blocker explainer"
+file_exists /home/ssu/Azas/tools/run/run_doosan_real_no_motion_m0609.sh "Doosan real no-motion bringup entrypoint"
+file_exists /home/ssu/Azas/tools/run/run_connected_robot_control.sh "Connected robot control orchestration entrypoint"
+file_exists /home/ssu/Azas/tools/run/run_robot_real.sh "Real-motion gated entrypoint"
 file_exists /home/ssu/Azas/docs/recovery_after_poweroff.md "Power-off recovery document"
 file_exists /home/ssu/Azas/docs/current_handoff_2026-05-11.md "Current handoff document"
 
 section "Fresh Non-Hardware Evidence"
-if /home/ssu/Azas/tools/verify_control_readiness.sh >/tmp/azas_completion_verify.out 2>&1; then
+if /home/ssu/Azas/tools/checks/verify_control_readiness.sh >/tmp/azas_completion_verify.out 2>&1; then
   ok "verify_control_readiness.sh passes"
 else
   missing_item "verify_control_readiness.sh passes"
@@ -131,7 +131,7 @@ else
   missing_item "Fresh strict live gate stamp exists: ${GATE_STAMP}"
 fi
 
-if /home/ssu/Azas/tools/check_real_motion_config.sh >/tmp/azas_completion_config.out 2>&1; then
+if /home/ssu/Azas/tools/checks/check_real_motion_config.sh >/tmp/azas_completion_config.out 2>&1; then
   ok "Production calibration/safety config gate passes"
 else
   missing_item "Production calibration/safety config gate passes"
@@ -144,7 +144,7 @@ if fresh_file "${FIELD_REPORT}" "Fresh field no-motion report"; then
   contains "${FIELD_REPORT}" '\[RESULT\] Live hardware gate: PASS' "Fresh field report includes live hardware gate PASS"
 fi
 
-if /home/ssu/Azas/tools/check_hand_eye_readiness.sh >"${HAND_EYE_REPORT}" 2>&1; then
+if /home/ssu/Azas/tools/checks/check_hand_eye_readiness.sh >"${HAND_EYE_REPORT}" 2>&1; then
   ok "Hand-eye/base-camera transform readiness check passes"
 else
   missing_item "Hand-eye/base-camera transform readiness check passes"

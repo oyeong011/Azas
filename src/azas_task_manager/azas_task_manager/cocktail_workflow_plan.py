@@ -61,7 +61,7 @@ def build_cocktail_steps(dispenser_ids: list[str]) -> list[TaskStep]:
                 "dispenser outlet poses",
             ),
             produces=("calibration_ready",),
-            command="tools/check_real_motion_config.sh",
+            command="tools/checks/check_real_motion_config.sh",
             hardware_gate="measured_config_required",
         ),
         TaskStep(

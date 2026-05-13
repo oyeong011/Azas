@@ -33,4 +33,3 @@
 | `real_motion_measurement_report.sh` | 실측 캘리브레이션 보고서 |
 | `recovery_after_poweroff.sh` | 전원 차단 후 복구 |
 | `set_motion_hold.sh` | 모션 홀드 설정 |
-| `tmux_cup_pick_pipeline.sh` | tmux 멀티 터미널 파이프라인 |

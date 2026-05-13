@@ -101,24 +101,24 @@ After the Doosan real bringup works, this project wrapper chains the Azas
 camera/YOLO path and acceptance gates. It stops before real motion by default:
 
 ```bash
-ROBOT_HOST=192.168.137.100 RG2_IP=192.168.1.1 /home/ssu/Azas/tools/run_connected_robot_control.sh
+ROBOT_HOST=192.168.137.100 RG2_IP=192.168.1.1 /home/ssu/Azas/tools/run/run_connected_robot_control.sh
 ```
 
 If the controller IP is on the other subnet:
 
 ```bash
-ROBOT_HOST=192.168.127.100 RG2_IP=192.168.1.1 /home/ssu/Azas/tools/run_connected_robot_control.sh
+ROBOT_HOST=192.168.127.100 RG2_IP=192.168.1.1 /home/ssu/Azas/tools/run/run_connected_robot_control.sh
 ```
 
 This wrapper is not a replacement for the course demo. It is the Azas field path
 for the cocktail task: Doosan connection, RealSense/YOLO detection, and
-no-motion acceptance. Real motion still goes through `tools/run_robot_real.sh`;
+no-motion acceptance. Real motion still goes through `tools/run/run_robot_real.sh`;
 set `RUN_REAL_AFTER_ACCEPTANCE=true` only for a supervised run that should
 explicitly hand off after acceptance.
 
 ## 4. Why Azas May Still Refuse
 
-`tools/run_robot_real.sh` intentionally refuses if any of these are true:
+`tools/run/run_robot_real.sh` intentionally refuses if any of these are true:
 
 - `/tmp/azas_motion_hold` exists.
 - `/tmp/azas_live_hardware_gates_passed` is missing or stale.
@@ -130,5 +130,5 @@ explicitly hand off after acceptance.
 For a no-motion explanation:
 
 ```bash
-/home/ssu/Azas/tools/explain_real_robot_blockers.sh
+/home/ssu/Azas/tools/checks/explain_real_robot_blockers.sh
 ```

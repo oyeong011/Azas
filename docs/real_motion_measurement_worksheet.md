@@ -1,6 +1,6 @@
 # Real Motion Measurement Worksheet
 
-Purpose: collect the measured values required before `tools/run_robot_real.sh` can be allowed.
+Purpose: collect the measured values required before `tools/run/run_robot_real.sh` can be allowed.
 
 Do not guess these values. Fill `calibration.yaml` and `safety.yaml` only from robot-cell measurement, calibration output, or Doosan/RG2 configuration evidence.
 
@@ -29,19 +29,19 @@ Do not guess these values. Fill `calibration.yaml` and `safety.yaml` only from r
 1. Start camera dry-run:
 
    ```bash
-   ENABLE_RG2=false /home/ssu/Azas/tools/run_robot_dryrun.sh
+   ENABLE_RG2=false /home/ssu/Azas/tools/run/run_robot_dryrun.sh
    ```
 
 2. Capture current no-motion status:
 
    ```bash
-   /home/ssu/Azas/tools/field_no_motion_report.sh
+   /home/ssu/Azas/tools/run/field_no_motion_report.sh
    ```
 
 3. Verify cup and lid stability with the actual tumbler body and lid:
 
    ```bash
-   RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/field_no_motion_report.sh
+   RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/run/field_no_motion_report.sh
    ```
 
 4. Connect/start Doosan and RG2 services, still without commanding motion.
@@ -51,10 +51,10 @@ Do not guess these values. Fill `calibration.yaml` and `safety.yaml` only from r
 6. Run strict gate:
 
    ```bash
-   STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/field_no_motion_report.sh
+   STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/run/field_no_motion_report.sh
    ```
 
-Only after the strict gate writes `/tmp/azas_live_hardware_gates_passed` should `tools/run_robot_real.sh` be considered.
+Only after the strict gate writes `/tmp/azas_live_hardware_gates_passed` should `tools/run/run_robot_real.sh` be considered.
 
 ## Current Known Blockers
 

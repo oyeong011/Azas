@@ -10,7 +10,7 @@ REASON="${*:-operator hold}"
   echo "motion_hold=true"
   echo "timestamp=$(date -Is)"
   echo "reason=${REASON}"
-  echo "effect=tools/run_robot_real.sh refuses to launch while this file exists"
+  echo "effect=tools/run/run_robot_real.sh refuses to launch while this file exists"
 } >"${MOTION_HOLD_FILE}"
 
 echo "[Azas] Motion hold set: ${MOTION_HOLD_FILE}"

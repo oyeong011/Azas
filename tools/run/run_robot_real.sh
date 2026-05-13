@@ -4,6 +4,8 @@ set -euo pipefail
 # Real robot motion entrypoint. This is intentionally separate from dry-run.
 # Use only after /azas/cup_detection is detected:* and the operator has verified e-stop/workspace safety.
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHECKS_DIR="${ROOT_DIR}/tools/checks"
 SELECTED_DISPENSER_ID="${SELECTED_DISPENSER_ID:-2}"
 RG2_IP="${RG2_IP:-192.168.1.1}"
 COLOR_TOPIC="${COLOR_TOPIC:-/camera/color/image_raw}"
@@ -12,7 +14,7 @@ CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/color/camera_info}"
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"
 LIVE_GATE_STAMP="${LIVE_GATE_STAMP:-/tmp/azas_live_hardware_gates_passed}"
 LIVE_GATE_MAX_AGE_SEC="${LIVE_GATE_MAX_AGE_SEC:-600}"
-REAL_MOTION_CONFIG_CHECK="${REAL_MOTION_CONFIG_CHECK:-/home/ssu/Azas/tools/check_real_motion_config.sh}"
+REAL_MOTION_CONFIG_CHECK="${REAL_MOTION_CONFIG_CHECK:-${CHECKS_DIR}/check_real_motion_config.sh}"
 MOTION_HOLD_FILE="${MOTION_HOLD_FILE:-/tmp/azas_motion_hold}"
 
 if [[ -f "${MOTION_HOLD_FILE}" ]]; then
@@ -26,7 +28,7 @@ fi
 if [[ ! -f "${LIVE_GATE_STAMP}" ]]; then
   echo "[Azas] Refusing real robot motion: missing strict live gate stamp."
   echo "[Azas] Run this after dry-run/live bringup passes:"
-  echo "  STRICT=true GATE_STAMP=${LIVE_GATE_STAMP} /home/ssu/Azas/tools/check_live_hardware_gates.sh"
+  echo "  STRICT=true GATE_STAMP=${LIVE_GATE_STAMP} ${CHECKS_DIR}/check_live_hardware_gates.sh"
   exit 1
 fi
 
@@ -40,7 +42,7 @@ stamp_sec="$(stat -c %Y "${LIVE_GATE_STAMP}")"
 age_sec=$((now_sec - stamp_sec))
 if (( age_sec > LIVE_GATE_MAX_AGE_SEC )); then
   echo "[Azas] Refusing real robot motion: live gate stamp is too old (${age_sec}s > ${LIVE_GATE_MAX_AGE_SEC}s)."
-  echo "[Azas] Re-run: STRICT=true GATE_STAMP=${LIVE_GATE_STAMP} /home/ssu/Azas/tools/check_live_hardware_gates.sh"
+  echo "[Azas] Re-run: STRICT=true GATE_STAMP=${LIVE_GATE_STAMP} ${CHECKS_DIR}/check_live_hardware_gates.sh"
   exit 1
 fi
 
@@ -66,7 +68,7 @@ fi
 
 set +u
 source /opt/ros/humble/setup.bash
-source /home/ssu/Azas/install/setup.bash
+source "${ROOT_DIR}/install/setup.bash"
 source /home/ssu/ros2_ws/install/setup.bash
 set -u
 

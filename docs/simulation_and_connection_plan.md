@@ -16,7 +16,7 @@ You do not need the real robot connected for the first validation pass. Connect 
 At any point, run this no-motion stage report to see what should be connected next:
 
 ```bash
-/home/ssu/Azas/tools/check_connection_stage.sh
+/home/ssu/Azas/tools/checks/check_connection_stage.sh
 ```
 
 ## Stage 0: Local Non-Hardware Readiness
@@ -24,7 +24,7 @@ At any point, run this no-motion stage report to see what should be connected ne
 Run:
 
 ```bash
-/home/ssu/Azas/tools/verify_control_readiness.sh
+/home/ssu/Azas/tools/checks/verify_control_readiness.sh
 ```
 
 This should pass before touching hardware. It verifies package availability, launch arguments, fake detection-to-control wiring, and fake hardware service calls. It does not prove live camera detection, calibration, MoveIt feasibility, RG2 behavior, or real robot motion.
@@ -34,8 +34,8 @@ This should pass before touching hardware. It verifies package availability, lau
 Use this when the robot is not connected:
 
 ```bash
-/home/ssu/Azas/tools/run_doosan_virtual_m0609.sh
-/home/ssu/Azas/tools/smoke_fake_hardware_path.sh
+/home/ssu/Azas/tools/run/run_doosan_virtual_m0609.sh
+/home/ssu/Azas/tools/smoke/smoke_fake_hardware_path.sh
 ```
 
 Goal: prove that the Azas control path can call the expected Doosan `MoveLine` and RG2 Trigger service shapes without deadlock or real hardware commands.
@@ -49,14 +49,14 @@ RViz simulation evidence from this session is recorded in `docs/rviz_simulation_
 Connect the RealSense before connecting real robot motion. Start the dry-run launch:
 
 ```bash
-/home/ssu/Azas/tools/run_robot_dryrun.sh
+/home/ssu/Azas/tools/run/run_robot_dryrun.sh
 ```
 
 Then verify:
 
 ```bash
-/home/ssu/Azas/tools/check_robot_detection.sh
-/home/ssu/Azas/tools/check_depth_projection_sample.sh
+/home/ssu/Azas/tools/checks/check_robot_detection.sh
+/home/ssu/Azas/tools/checks/check_depth_projection_sample.sh
 ```
 
 Goal: prove the live camera can produce color, aligned depth, `CameraInfo`, YOLO detection, and a camera-frame 3D point for the actual tumbler/lid.
@@ -72,7 +72,7 @@ Connect/power the Doosan and RG2, but do not run real motion yet.
 Run the strict gate:
 
 ```bash
-STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
 ```
 
 This sends no motion commands. It checks:
@@ -92,7 +92,7 @@ The strict gate must fail while `calibration.yaml` or `safety.yaml` still contai
 Only after Stage 3 passes and the safety checklist is complete:
 
 ```bash
-/home/ssu/Azas/tools/run_robot_real.sh
+/home/ssu/Azas/tools/run/run_robot_real.sh
 ```
 
 `run_robot_real.sh` refuses to launch unless the strict gate stamp exists, was produced by `STRICT=true`, and is recent. It also requires typing `ENABLE_REAL_ROBOT_MOTION`.

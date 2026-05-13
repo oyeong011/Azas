@@ -7,7 +7,7 @@ set -euo pipefail
 REPORT="${REPORT:-/tmp/azas_real_motion_measurement_report.txt}"
 CALIBRATION_FILE="${CALIBRATION_FILE:-/home/ssu/Azas/src/azas_bringup/config/calibration.yaml}"
 SAFETY_FILE="${SAFETY_FILE:-/home/ssu/Azas/src/azas_bringup/config/safety.yaml}"
-CHECKER="${CHECKER:-/home/ssu/Azas/tools/check_real_motion_config.sh}"
+CHECKER="${CHECKER:-/home/ssu/Azas/tools/checks/check_real_motion_config.sh}"
 
 rm -f "${REPORT}"
 
@@ -50,7 +50,7 @@ section "Next Command"
 cat <<'EOF' | tee -a "${REPORT}"
 After the measured values are filled:
 
-STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/field_no_motion_report.sh
+STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/run/field_no_motion_report.sh
 
 Real motion remains blocked until that strict report writes /tmp/azas_live_hardware_gates_passed.
 EOF

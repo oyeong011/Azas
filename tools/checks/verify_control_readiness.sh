@@ -5,6 +5,10 @@ set -euo pipefail
 # It builds/tests nothing destructive and sends no motion or gripper commands.
 
 REPORT="${REPORT:-/tmp/azas_control_readiness_report.txt}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHECKS_DIR="${ROOT_DIR}/tools/checks"
+RUN_DIR="${ROOT_DIR}/tools/run"
+SMOKE_DIR="${ROOT_DIR}/tools/smoke"
 STRICT_OPTIONAL="${STRICT_OPTIONAL:-false}"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-/tmp/azas_ros_logs}"
 
@@ -40,70 +44,75 @@ run_step() {
 } | tee -a "${REPORT}"
 
 run_step "Script syntax" bash -lc '
-  bash -n /home/ssu/Azas/tools/check_oss_stack.sh
-  bash -n /home/ssu/Azas/tools/smoke_control_path.sh
-  bash -n /home/ssu/Azas/tools/check_live_hardware_gates.sh
-  bash -n /home/ssu/Azas/tools/check_connection_stage.sh
-  bash -n /home/ssu/Azas/tools/check_real_motion_config.sh
-  bash -n /home/ssu/Azas/tools/explain_real_robot_blockers.sh
-  bash -n /home/ssu/Azas/tools/run_doosan_virtual_m0609.sh
-  bash -n /home/ssu/Azas/tools/run_doosan_real_no_motion_m0609.sh
-  bash -n /home/ssu/Azas/tools/run_connected_robot_control.sh
-  bash -n /home/ssu/Azas/tools/run_robot_dryrun.sh
-  bash -n /home/ssu/Azas/tools/run_robot_real.sh
-  bash -n /home/ssu/Azas/tools/smoke_fake_hardware_path.sh
-	  bash -n /home/ssu/Azas/tools/smoke_random_cup_grasp_candidates.sh
-	  bash -n /home/ssu/Azas/tools/smoke_stage_execution_modes.sh
-	  bash -n /home/ssu/Azas/tools/smoke_dispense_lid_sequence.sh
-	  bash -n /home/ssu/Azas/tools/smoke_tumbler_shake_sequence.sh
-  bash -n /home/ssu/Azas/tools/check_depth_projection_sample.sh
-  bash -n /home/ssu/Azas/tools/check_detection_stability.sh
-  bash -n /home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.sh
-  bash -n /home/ssu/Azas/tools/field_no_motion_report.sh
-  bash -n /home/ssu/Azas/tools/robot_connection_acceptance.sh
-  bash -n /home/ssu/Azas/tools/smoke_robot_connection_acceptance_gate.sh
-  bash -n /home/ssu/Azas/tools/real_motion_measurement_report.sh
-  bash -n /home/ssu/Azas/tools/smoke_real_motion_entrypoint_gates.sh
-  bash -n /home/ssu/Azas/tools/smoke_real_motion_config_gate.sh
-  bash -n /home/ssu/Azas/tools/completion_audit.sh
-  python3 -m py_compile /home/ssu/Azas/tools/fake_hardware_services.py
-  python3 -m py_compile /home/ssu/Azas/tools/check_static_cup_lid_dataset.py
-  python3 -m py_compile /home/ssu/Azas/tools/check_fixed_dispenser_geometry.py
-  python3 -m py_compile /home/ssu/Azas/tools/check_cocktail_workflow_plan.py
-  python3 -m py_compile /home/ssu/Azas/tools/check_depth_projection_sample.py
-  python3 -m py_compile /home/ssu/Azas/tools/check_detection_stability.py
-  python3 -m py_compile /home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.py
-  python3 -m py_compile /home/ssu/Azas/src/azas_task_manager/azas_task_manager/cocktail_workflow_plan.py
-  python3 -m py_compile /home/ssu/Azas/src/azas_task_manager/azas_task_manager/cocktail_dryrun_sequence_node.py
-'
+  for script in "$@"; do
+    bash -n "${script}"
+  done
+' bash \
+  "${CHECKS_DIR}/check_oss_stack.sh" \
+  "${SMOKE_DIR}/smoke_control_path.sh" \
+  "${CHECKS_DIR}/check_live_hardware_gates.sh" \
+  "${CHECKS_DIR}/check_connection_stage.sh" \
+  "${CHECKS_DIR}/check_real_motion_config.sh" \
+  "${CHECKS_DIR}/explain_real_robot_blockers.sh" \
+  "${RUN_DIR}/run_doosan_virtual_m0609.sh" \
+  "${RUN_DIR}/run_doosan_real_no_motion_m0609.sh" \
+  "${RUN_DIR}/run_connected_robot_control.sh" \
+  "${RUN_DIR}/run_robot_dryrun.sh" \
+  "${RUN_DIR}/run_robot_real.sh" \
+  "${SMOKE_DIR}/smoke_fake_hardware_path.sh" \
+  "${SMOKE_DIR}/smoke_random_cup_grasp_candidates.sh" \
+  "${SMOKE_DIR}/smoke_stage_execution_modes.sh" \
+  "${SMOKE_DIR}/smoke_dispense_lid_sequence.sh" \
+  "${SMOKE_DIR}/smoke_tumbler_shake_sequence.sh" \
+  "${CHECKS_DIR}/check_depth_projection_sample.sh" \
+  "${CHECKS_DIR}/check_detection_stability.sh" \
+  "${SMOKE_DIR}/smoke_cocktail_dryrun_sequence.sh" \
+  "${RUN_DIR}/field_no_motion_report.sh" \
+  "${CHECKS_DIR}/robot_connection_acceptance.sh" \
+  "${SMOKE_DIR}/smoke_robot_connection_acceptance_gate.sh" \
+  "${RUN_DIR}/real_motion_measurement_report.sh" \
+  "${SMOKE_DIR}/smoke_real_motion_entrypoint_gates.sh" \
+  "${SMOKE_DIR}/smoke_real_motion_config_gate.sh" \
+  "${CHECKS_DIR}/completion_audit.sh"
 
-run_step "OSS stack availability" env STRICT_OPTIONAL="${STRICT_OPTIONAL}" /home/ssu/Azas/tools/check_oss_stack.sh
+run_step "Python syntax" python3 -m py_compile \
+  "${SMOKE_DIR}/fake_hardware_services.py" \
+  "${CHECKS_DIR}/check_static_cup_lid_dataset.py" \
+  "${CHECKS_DIR}/check_fixed_dispenser_geometry.py" \
+  "${CHECKS_DIR}/check_cocktail_workflow_plan.py" \
+  "${CHECKS_DIR}/check_depth_projection_sample.py" \
+  "${CHECKS_DIR}/check_detection_stability.py" \
+  "${SMOKE_DIR}/smoke_cocktail_dryrun_sequence.py" \
+  "${ROOT_DIR}/src/azas_task_manager/azas_task_manager/cocktail_workflow_plan.py" \
+  "${ROOT_DIR}/src/azas_task_manager/azas_task_manager/cocktail_dryrun_sequence_node.py"
 
-run_step "Static cup/lid photo dataset gate" /home/ssu/Azas/tools/check_static_cup_lid_dataset.py
+run_step "OSS stack availability" env STRICT_OPTIONAL="${STRICT_OPTIONAL}" "${CHECKS_DIR}/check_oss_stack.sh"
 
-run_step "Fixed dispenser geometry gate" /home/ssu/Azas/tools/check_fixed_dispenser_geometry.py
+run_step "Static cup/lid photo dataset gate" "${CHECKS_DIR}/check_static_cup_lid_dataset.py"
 
-run_step "Non-hardware control smoke" /home/ssu/Azas/tools/smoke_control_path.sh
+run_step "Fixed dispenser geometry gate" "${CHECKS_DIR}/check_fixed_dispenser_geometry.py"
 
-run_step "Fake hardware-armed smoke" /home/ssu/Azas/tools/smoke_fake_hardware_path.sh
+run_step "Non-hardware control smoke" "${SMOKE_DIR}/smoke_control_path.sh"
 
-run_step "Random cup side-grasp candidate smoke" /home/ssu/Azas/tools/smoke_random_cup_grasp_candidates.sh
+run_step "Fake hardware-armed smoke" "${SMOKE_DIR}/smoke_fake_hardware_path.sh"
 
-run_step "Stage execution mode smoke" /home/ssu/Azas/tools/smoke_stage_execution_modes.sh
+run_step "Random cup side-grasp candidate smoke" "${SMOKE_DIR}/smoke_random_cup_grasp_candidates.sh"
 
-run_step "Dispenser press and lid-close fake hardware smoke" /home/ssu/Azas/tools/smoke_dispense_lid_sequence.sh
+run_step "Stage execution mode smoke" "${SMOKE_DIR}/smoke_stage_execution_modes.sh"
 
-run_step "Safe-space tumbler shake fake hardware smoke" /home/ssu/Azas/tools/smoke_tumbler_shake_sequence.sh
+run_step "Dispenser press and lid-close fake hardware smoke" "${SMOKE_DIR}/smoke_dispense_lid_sequence.sh"
 
-run_step "Cocktail dry-run sequence smoke" /home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.sh
+run_step "Safe-space tumbler shake fake hardware smoke" "${SMOKE_DIR}/smoke_tumbler_shake_sequence.sh"
 
-run_step "Full cocktail workflow plan gate" /home/ssu/Azas/tools/check_cocktail_workflow_plan.py
+run_step "Cocktail dry-run sequence smoke" "${SMOKE_DIR}/smoke_cocktail_dryrun_sequence.sh"
 
-run_step "Real-motion entrypoint fail-closed smoke" /home/ssu/Azas/tools/smoke_real_motion_entrypoint_gates.sh
+run_step "Full cocktail workflow plan gate" "${CHECKS_DIR}/check_cocktail_workflow_plan.py"
 
-run_step "Robot connection acceptance fail-closed smoke" /home/ssu/Azas/tools/smoke_robot_connection_acceptance_gate.sh
+run_step "Real-motion entrypoint fail-closed smoke" "${SMOKE_DIR}/smoke_real_motion_entrypoint_gates.sh"
 
-run_step "Real-motion config gate smoke" /home/ssu/Azas/tools/smoke_real_motion_config_gate.sh
+run_step "Robot connection acceptance fail-closed smoke" "${SMOKE_DIR}/smoke_robot_connection_acceptance_gate.sh"
+
+run_step "Real-motion config gate smoke" "${SMOKE_DIR}/smoke_real_motion_config_gate.sh"
 
 run_step "Doosan virtual launch args" bash -lc '
   source /opt/ros/humble/setup.bash
@@ -111,14 +120,14 @@ run_step "Doosan virtual launch args" bash -lc '
   timeout 20s ros2 launch dsr_bringup2 dsr_bringup2_moveit.launch.py --show-args
 '
 
-run_step "Doosan real no-motion launch args" env SHOW_ARGS_ONLY=true /home/ssu/Azas/tools/run_doosan_real_no_motion_m0609.sh
+run_step "Doosan real no-motion launch args" env SHOW_ARGS_ONLY=true "${RUN_DIR}/run_doosan_real_no_motion_m0609.sh"
 
 {
   echo
   echo "## Completion Boundary"
   echo "PASS here means the local non-hardware stack is wired."
   echo "It does not prove real camera detection, hand-eye calibration, RG2 actuation, MoveIt feasibility for measured poses, e-stop behavior, or real Doosan motion."
-  echo "Run /home/ssu/Azas/tools/check_live_hardware_gates.sh after live bringup for field evidence."
+  echo "Run ${CHECKS_DIR}/check_live_hardware_gates.sh after live bringup for field evidence."
   echo
   echo "Report: ${REPORT}"
 } | tee -a "${REPORT}"

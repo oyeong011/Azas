@@ -80,7 +80,7 @@ failure_behavior:
 EOF
 
 if CALIBRATION_FILE="${PLACEHOLDER_CAL}" SAFETY_FILE="${PLACEHOLDER_SAFE}" \
-  /home/ssu/Azas/tools/check_real_motion_config.sh >/tmp/azas_config_placeholder.out 2>&1; then
+  /home/ssu/Azas/tools/checks/check_real_motion_config.sh >/tmp/azas_config_placeholder.out 2>&1; then
   echo "[FAIL] placeholder config unexpectedly passed"
   sed -n '1,120p' /tmp/azas_config_placeholder.out
   exit 1
@@ -88,5 +88,5 @@ fi
 echo "[PASS] placeholder config is blocked"
 
 CALIBRATION_FILE="${VALID_CAL}" SAFETY_FILE="${VALID_SAFE}" \
-  /home/ssu/Azas/tools/check_real_motion_config.sh >/tmp/azas_config_valid.out 2>&1
+  /home/ssu/Azas/tools/checks/check_real_motion_config.sh >/tmp/azas_config_valid.out 2>&1
 echo "[PASS] measured-like fixture config passes"

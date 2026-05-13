@@ -1,4 +1,5 @@
 import json
+import math
 
 import rclpy
 from azas_motion.alignment import (
@@ -46,7 +47,7 @@ class AlignmentExecutorNode(Node):
         self.declare_parameter("grasp_pose_topic", "")
         self.declare_parameter("lift_pose_topic", "")
         self.declare_parameter("planning_timeout_sec", 5.0)
-        self.declare_parameter("use_fake_side_grasp_plan", True)
+        self.declare_parameter("use_fake_side_grasp_plan", False)
         self.declare_parameter("use_observe_pose_plan", False)
         self.declare_parameter("observe_pose_x", 0.35)
         self.declare_parameter("observe_pose_y", -0.25)
@@ -56,9 +57,9 @@ class AlignmentExecutorNode(Node):
         self.declare_parameter("observe_qz", 0.0)
         self.declare_parameter("observe_qw", 1.0)
         self.declare_parameter("observe_frame", "base_link")
-        self.declare_parameter("cup_reference_x", 0.32)
-        self.declare_parameter("cup_reference_y", -0.22)
-        self.declare_parameter("cup_reference_z", 0.05)
+        self.declare_parameter("cup_reference_x", math.nan)
+        self.declare_parameter("cup_reference_y", math.nan)
+        self.declare_parameter("cup_reference_z", math.nan)
         self.declare_parameter("side_grasp_qx", 0.0)
         self.declare_parameter("side_grasp_qy", 0.0)
         self.declare_parameter("side_grasp_qz", 0.0)
@@ -100,10 +101,23 @@ class AlignmentExecutorNode(Node):
     def _configure_fake_side_grasp_plan(self) -> None:
         if not bool(self.get_parameter("use_fake_side_grasp_plan").value):
             return
+        reference_x = float(self.get_parameter("cup_reference_x").value)
+        reference_y = float(self.get_parameter("cup_reference_y").value)
+        reference_z = float(self.get_parameter("cup_reference_z").value)
+        if not all(math.isfinite(value) for value in (reference_x, reference_y, reference_z)):
+            self.get_logger().error(
+                self._planning_log(
+                    "fake_side_grasp_plan",
+                    "failed",
+                    error="cup_reference_x/y/z must be provided when use_fake_side_grasp_plan=true",
+                    real_readiness=False,
+                )
+            )
+            return
         reference_pose = Pose()
-        reference_pose.position.x = float(self.get_parameter("cup_reference_x").value)
-        reference_pose.position.y = float(self.get_parameter("cup_reference_y").value)
-        reference_pose.position.z = float(self.get_parameter("cup_reference_z").value)
+        reference_pose.position.x = reference_x
+        reference_pose.position.y = reference_y
+        reference_pose.position.z = reference_z
         reference_pose.orientation.w = 1.0
         try:
             plan = compute_side_grasp_plan(

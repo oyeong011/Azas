@@ -177,9 +177,10 @@ Azas/
 │   ├── run/                 # 현장 실행 스크립트
 │   ├── pick/                # 컵 픽 · 그라스프 플래닝 도구
 │   ├── perception/          # 인식 데이터 수집 도구
-│   ├── gazebo_models/       # Gazebo 프리뷰 모델
-│   └── legacy/              # 이전 스크립트 (마이그레이션 중)
+│   └── gazebo_models/       # Gazebo 프리뷰 모델
 ├── docs/                    # 기술 문서
+│   ├── onboarding/          # 신규 협업자용 한국어 입문 문서
+│   └── reference/           # 명령어 · 토픽 · 구조 참조 문서
 ├── models/                  # 3D 모델 파일
 ├── dependencies/            # 의존성 목록
 ├── config/                  # (루트 수준 설정)

@@ -37,26 +37,26 @@ source install/setup.bash
 Run the non-hardware verifier:
 
 ```bash
-/home/ssu/Azas/tools/verify_control_readiness.sh
+/home/ssu/Azas/tools/checks/verify_control_readiness.sh
 ```
 
 Run the current field no-motion report:
 
 ```bash
-/home/ssu/Azas/tools/field_no_motion_report.sh
+/home/ssu/Azas/tools/run/field_no_motion_report.sh
 ```
 
 After camera, Doosan, and RG2 are connected, run the one-command acceptance
 check:
 
 ```bash
-/home/ssu/Azas/tools/robot_connection_acceptance.sh
+/home/ssu/Azas/tools/checks/robot_connection_acceptance.sh
 ```
 
 Run the measured-value blocker report:
 
 ```bash
-/home/ssu/Azas/tools/real_motion_measurement_report.sh
+/home/ssu/Azas/tools/run/real_motion_measurement_report.sh
 ```
 
 ## Camera Restart
@@ -64,21 +64,21 @@ Run the measured-value blocker report:
 For camera-only dry-run after plugging in RealSense:
 
 ```bash
-ENABLE_RG2=false /home/ssu/Azas/tools/run_robot_dryrun.sh
+ENABLE_RG2=false /home/ssu/Azas/tools/run/run_robot_dryrun.sh
 ```
 
 Then check:
 
 ```bash
-/home/ssu/Azas/tools/check_connection_stage.sh
-/home/ssu/Azas/tools/check_depth_projection_sample.sh
-/home/ssu/Azas/tools/check_robot_detection.sh
+/home/ssu/Azas/tools/checks/check_connection_stage.sh
+/home/ssu/Azas/tools/checks/check_depth_projection_sample.sh
+/home/ssu/Azas/tools/checks/check_robot_detection.sh
 ```
 
 Cup/lid stability checks:
 
 ```bash
-/home/ssu/Azas/tools/check_cup_lid_sequence.sh
+/home/ssu/Azas/tools/checks/check_cup_lid_sequence.sh
 ```
 
 ## Robot/RG2 No-Motion Gate
@@ -86,11 +86,11 @@ Cup/lid stability checks:
 After Doosan/RG2 services are running, still before real motion:
 
 ```bash
-ROBOT_HOST=<robot-ip> DOOSAN_NO_MOTION_CONFIRM=CONNECT_DOOSAN_NO_MOTION /home/ssu/Azas/tools/run_doosan_real_no_motion_m0609.sh
+ROBOT_HOST=<robot-ip> DOOSAN_NO_MOTION_CONFIRM=CONNECT_DOOSAN_NO_MOTION /home/ssu/Azas/tools/run/run_doosan_real_no_motion_m0609.sh
 ```
 
 ```bash
-STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/field_no_motion_report.sh
+STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/run/field_no_motion_report.sh
 ```
 
 This must write:
@@ -99,7 +99,7 @@ This must write:
 /tmp/azas_live_hardware_gates_passed
 ```
 
-If that file is missing, stale, or not strict, `tools/run_robot_real.sh` refuses to launch.
+If that file is missing, stale, or not strict, `tools/run/run_robot_real.sh` refuses to launch.
 
 ## Main Files To Inspect
 
@@ -108,18 +108,18 @@ If that file is missing, stale, or not strict, `tools/run_robot_real.sh` refuses
 - `docs/real_motion_measurement_worksheet.md`
 - `docs/dsr_deeptree_integration.md`
 - `docs/full_cocktail_workflow_plan.md`
-- `tools/verify_control_readiness.sh`
-- `tools/field_no_motion_report.sh`
-- `tools/robot_connection_acceptance.sh`
-- `tools/real_motion_measurement_report.sh`
+- `tools/checks/verify_control_readiness.sh`
+- `tools/run/field_no_motion_report.sh`
+- `tools/checks/robot_connection_acceptance.sh`
+- `tools/run/real_motion_measurement_report.sh`
 
 ## Safe Stop Point
 
 If interrupted, the safe resume point is:
 
 ```bash
-/home/ssu/Azas/tools/verify_control_readiness.sh
-/home/ssu/Azas/tools/field_no_motion_report.sh
+/home/ssu/Azas/tools/checks/verify_control_readiness.sh
+/home/ssu/Azas/tools/run/field_no_motion_report.sh
 ```
 
 Do not claim real robot-control readiness until `docs/control_readiness_audit.md` has no missing real-hardware items.

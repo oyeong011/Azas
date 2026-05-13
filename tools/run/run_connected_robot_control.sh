@@ -8,6 +8,9 @@ set -euo pipefail
 # entrypoint still enforces its own motion hold, strict-stamp, config, and
 # typed-confirmation checks.
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHECKS_DIR="${ROOT_DIR}/tools/checks"
+RUN_DIR="${ROOT_DIR}/tools/run"
 ROBOT_HOST="${ROBOT_HOST:-}"
 ROBOT_NAME="${ROBOT_NAME:-}"
 SERVICE_PREFIX="${SERVICE_PREFIX:-${ROBOT_NAME}}"
@@ -49,14 +52,14 @@ if [[ "${START_DOOSAN}" == "true" ]]; then
   if [[ -z "${ROBOT_HOST}" ]]; then
     echo "[Azas] ROBOT_HOST is required for connected robot control."
     echo "[Azas] Example:"
-    echo "  ROBOT_HOST=192.168.137.100 RG2_IP=192.168.1.1 /home/ssu/Azas/tools/run_connected_robot_control.sh"
+    echo "  ROBOT_HOST=192.168.137.100 RG2_IP=192.168.1.1 ${RUN_DIR}/run_connected_robot_control.sh"
     exit 1
   fi
   echo "[Azas] Starting Doosan real no-motion bringup in background."
-  ROBOT_HOST="${ROBOT_HOST}" \
+    ROBOT_HOST="${ROBOT_HOST}" \
     ROBOT_NAME="${ROBOT_NAME}" \
     DOOSAN_NO_MOTION_CONFIRM=CONNECT_DOOSAN_NO_MOTION \
-    /home/ssu/Azas/tools/run_doosan_real_no_motion_m0609.sh \
+    "${RUN_DIR}/run_doosan_real_no_motion_m0609.sh" \
     >"${LOG_DIR}/doosan_real_no_motion.log" 2>&1 &
   doosan_pid="$!"
   sleep "${DOOSAN_STARTUP_SEC}"
@@ -71,7 +74,7 @@ if [[ "${START_DRYRUN}" == "true" ]]; then
   echo "[Azas] Starting Azas safe dry-run in background."
   SELECTED_DISPENSER_ID="${SELECTED_DISPENSER_ID}" \
     RG2_IP="${RG2_IP}" \
-    /home/ssu/Azas/tools/run_robot_dryrun.sh \
+    "${RUN_DIR}/run_robot_dryrun.sh" \
     >"${LOG_DIR}/robot_dryrun.log" 2>&1 &
   dryrun_pid="$!"
   sleep "${DRYRUN_STARTUP_SEC}"
@@ -86,7 +89,7 @@ if [[ "${RUN_ACCEPTANCE}" == "true" ]]; then
   echo "[Azas] Running strict no-motion acceptance gates."
   SERVICE_PREFIX="${SERVICE_PREFIX}" \
     RG2_IP="${RG2_IP}" \
-    /home/ssu/Azas/tools/robot_connection_acceptance.sh
+    "${CHECKS_DIR}/robot_connection_acceptance.sh"
 fi
 
 if [[ "${RUN_REAL_AFTER_ACCEPTANCE}" == "true" ]]; then
@@ -102,7 +105,7 @@ if [[ "${RUN_REAL_AFTER_ACCEPTANCE}" == "true" ]]; then
   SELECTED_DISPENSER_ID="${SELECTED_DISPENSER_ID}" \
     RG2_IP="${RG2_IP}" \
     SERVICE_PREFIX="${SERVICE_PREFIX}" \
-    exec /home/ssu/Azas/tools/run_robot_real.sh
+    exec "${RUN_DIR}/run_robot_real.sh"
 fi
 
 echo "[Azas] Connected robot control checks completed without entering real motion."

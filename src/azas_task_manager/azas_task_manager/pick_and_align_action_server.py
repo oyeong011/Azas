@@ -233,11 +233,7 @@ class PickAndAlignActionServer(Node):
             f"lift={self._pose_xyz(plan.lift_pose)}"
         )
 
-        self._publish_feedback(goal_handle, feedback, "FAKE_GRIPPER_OPEN", "No real RG2 command; optional fake Trigger only")
-        if not self._call_fake_gripper_if_enabled(
-            str(self.get_parameter("fake_gripper_open_service").value),
-            "open",
-        ):
+        if not self._publish_and_call_fake_gripper(goal_handle, feedback, "open"):
             return self._fail_result(
                 goal_handle,
                 "FAKE_GRIPPER_OPEN_FAILED",
@@ -245,11 +241,7 @@ class PickAndAlignActionServer(Node):
             )
 
         self._publish_feedback(goal_handle, feedback, "FAKE_APPROACH", self._pose_xyz(plan.approach_pose))
-        self._publish_feedback(goal_handle, feedback, "FAKE_GRIPPER_CLOSE", "No real RG2 command; optional fake Trigger only")
-        if not self._call_fake_gripper_if_enabled(
-            str(self.get_parameter("fake_gripper_close_service").value),
-            "close",
-        ):
+        if not self._publish_and_call_fake_gripper(goal_handle, feedback, "close"):
             return self._fail_result(
                 goal_handle,
                 "FAKE_GRIPPER_CLOSE_FAILED",
@@ -273,27 +265,7 @@ class PickAndAlignActionServer(Node):
         try:
             plan = compute_side_grasp_plan(
                 pose_msg.pose,
-                SideGraspConfig(
-                    orientation_source=str(
-                        self.get_parameter("side_grasp_orientation_source").value
-                    ),
-                    side_grasp_qx=float(self.get_parameter("side_grasp_qx").value),
-                    side_grasp_qy=float(self.get_parameter("side_grasp_qy").value),
-                    side_grasp_qz=float(self.get_parameter("side_grasp_qz").value),
-                    side_grasp_qw=float(self.get_parameter("side_grasp_qw").value),
-                    side_approach_axis=str(self.get_parameter("side_approach_axis").value),
-                    side_approach_offset_m=float(
-                        self.get_parameter("side_approach_offset_m").value
-                    ),
-                    side_clearance_m=float(self.get_parameter("side_clearance_m").value),
-                    cup_radius_m=float(self.get_parameter("cup_radius_m").value),
-                    grasp_height_offset_m=float(
-                        self.get_parameter("grasp_height_offset_m").value
-                    ),
-                    lift_offset_m=float(self.get_parameter("lift_offset_m").value),
-                    min_grasp_z_m=float(self.get_parameter("min_grasp_z_m").value),
-                    max_grasp_z_m=float(self.get_parameter("max_grasp_z_m").value),
-                ),
+                self._side_grasp_config(),
             )
         except ValueError as exc:
             return self._fail_result(
@@ -330,16 +302,7 @@ class PickAndAlignActionServer(Node):
             "SIDE_PICK_NO_MOTION",
             f"{self._pose_xyz(plan.grasp_pose)} warning={plan.warning}",
         )
-        self._publish_feedback(
-            goal_handle,
-            feedback,
-            "FAKE_GRIPPER_CLOSE",
-            "No real RG2 command; optional fake Trigger only",
-        )
-        if not self._call_fake_gripper_if_enabled(
-            str(self.get_parameter("fake_gripper_close_service").value),
-            "close",
-        ):
+        if not self._publish_and_call_fake_gripper(goal_handle, feedback, "close"):
             return self._fail_result(
                 goal_handle,
                 "FAKE_GRIPPER_SERVICE_FAILED",
@@ -408,6 +371,37 @@ class PickAndAlignActionServer(Node):
             return False
         self.get_logger().info(f"Fake gripper {command} accepted: {response.message}")
         return True
+
+    def _publish_and_call_fake_gripper(self, goal_handle, feedback, command: str) -> bool:
+        state = f"FAKE_GRIPPER_{command.upper()}"
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            state,
+            "No real RG2 command; optional fake Trigger only",
+        )
+        service_param = f"fake_gripper_{command}_service"
+        return self._call_fake_gripper_if_enabled(
+            str(self.get_parameter(service_param).value),
+            command,
+        )
+
+    def _side_grasp_config(self) -> SideGraspConfig:
+        return SideGraspConfig(
+            orientation_source=str(self.get_parameter("side_grasp_orientation_source").value),
+            side_grasp_qx=float(self.get_parameter("side_grasp_qx").value),
+            side_grasp_qy=float(self.get_parameter("side_grasp_qy").value),
+            side_grasp_qz=float(self.get_parameter("side_grasp_qz").value),
+            side_grasp_qw=float(self.get_parameter("side_grasp_qw").value),
+            side_approach_axis=str(self.get_parameter("side_approach_axis").value),
+            side_approach_offset_m=float(self.get_parameter("side_approach_offset_m").value),
+            side_clearance_m=float(self.get_parameter("side_clearance_m").value),
+            cup_radius_m=float(self.get_parameter("cup_radius_m").value),
+            grasp_height_offset_m=float(self.get_parameter("grasp_height_offset_m").value),
+            lift_offset_m=float(self.get_parameter("lift_offset_m").value),
+            min_grasp_z_m=float(self.get_parameter("min_grasp_z_m").value),
+            max_grasp_z_m=float(self.get_parameter("max_grasp_z_m").value),
+        )
 
     def _fail_result(self, goal_handle, error_code: str, message: str):
         result = PickAndAlign.Result()

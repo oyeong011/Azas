@@ -5,7 +5,7 @@ This is option C for the Azas cup dataset: use a generic COCO detector to
 bootstrap labels, then review them manually before training a project model.
 
 Example:
-    python3 tools/auto_label_yolo_cups.py \
+    python3 tools/perception/auto_label_yolo_cups.py \
         --dataset /home/ssu/Downloads/yolo_cup_dataset \
         --model yolo11n.pt \
         --conf 0.25 \

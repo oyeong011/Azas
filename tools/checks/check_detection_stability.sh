@@ -12,4 +12,4 @@ source /opt/ros/humble/setup.bash
 source /home/ssu/Azas/install/setup.bash
 set -u
 
-exec python3 /home/ssu/Azas/tools/check_detection_stability.py "$@"
+exec python3 /home/ssu/Azas/tools/checks/check_detection_stability.py "$@"

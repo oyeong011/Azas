@@ -86,7 +86,7 @@ else
   block "missing fresh strict live gate stamp: ${GATE_STAMP}"
 fi
 
-if /home/ssu/Azas/tools/check_real_motion_config.sh >/tmp/azas_explain_config.out 2>&1; then
+if /home/ssu/Azas/tools/checks/check_real_motion_config.sh >/tmp/azas_explain_config.out 2>&1; then
   ok "measured calibration/safety config passes"
 else
   block "measured calibration/safety config does not pass"
@@ -122,9 +122,9 @@ fi
 
 if [[ "${blockers}" -eq 0 ]]; then
   echo "[READY] Real robot entrypoint prerequisites appear satisfied."
-  echo "[NEXT] /home/ssu/Azas/tools/run_robot_real.sh"
+  echo "[NEXT] /home/ssu/Azas/tools/run/run_robot_real.sh"
 else
   echo "[NOT READY] blockers=${blockers}"
-  echo "[NEXT] Fix the blockers above, then rerun this script or /home/ssu/Azas/tools/robot_connection_acceptance.sh."
+  echo "[NEXT] Fix the blockers above, then rerun this script or /home/ssu/Azas/tools/checks/robot_connection_acceptance.sh."
   exit 1
 fi

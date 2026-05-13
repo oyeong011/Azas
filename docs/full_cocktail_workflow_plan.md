@@ -48,7 +48,7 @@ Applied in Azas:
 
 ```bash
 ros2 launch azas_bringup cocktail_dryrun.launch.py
-/home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.sh
+/home/ssu/Azas/tools/smoke/smoke_cocktail_dryrun_sequence.sh
 ```
 
 This currently verifies orchestration only. It does not move the robot or actuate RG2/dispenser hardware.
@@ -62,7 +62,7 @@ declares required inputs, produced state, command boundary, and hardware gate:
 - `PICK_CUP`, `ALIGN_CUP_UNDER_DISPENSER`, `PRESS_DISPENSER`, `PICK_LID`,
   `PLACE_AND_PRESS_LID`, `SHAKE_CUP`, `OPEN_LID`, and `POUR` all require the
   strict live gate before real hardware execution.
-- `tools/check_cocktail_workflow_plan.py` verifies the phase order and strict
+- `tools/checks/check_cocktail_workflow_plan.py` verifies the phase order and strict
   hardware gates without ROS hardware.
 
 ## Control Architecture
@@ -85,8 +85,8 @@ The full system should remain split by responsibility:
 Required before robot connection:
 
 ```bash
-/home/ssu/Azas/tools/check_detection_stability.sh --expect-class lid
-/home/ssu/Azas/tools/check_detection_stability.sh --expect-class cup
+/home/ssu/Azas/tools/checks/check_detection_stability.sh --expect-class lid
+/home/ssu/Azas/tools/checks/check_detection_stability.sh --expect-class cup
 ```
 
 Acceptance:
@@ -100,7 +100,7 @@ Acceptance:
 Required before any real motion:
 
 ```bash
-STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh
+STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/checks/check_live_hardware_gates.sh
 ```
 
 Acceptance:
@@ -180,7 +180,7 @@ Code-prepared state:
 Do not connect the real robot for motion yet. The next concrete test is cup-body detection:
 
 ```bash
-/home/ssu/Azas/tools/check_detection_stability.sh --expect-class cup
+/home/ssu/Azas/tools/checks/check_detection_stability.sh --expect-class cup
 ```
 
 If it passes, proceed to Doosan/RG2 no-motion service checks and measured calibration. If it fails, collect more cup-body images or tune the YOLO target/class confidence before attempting robot motion.
@@ -188,7 +188,7 @@ If it passes, proceed to Doosan/RG2 no-motion service checks and measured calibr
 Offline verifier before reconnecting hardware:
 
 ```bash
-/home/ssu/Azas/tools/check_cocktail_workflow_plan.py
-/home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.sh
-/home/ssu/Azas/tools/verify_control_readiness.sh
+/home/ssu/Azas/tools/checks/check_cocktail_workflow_plan.py
+/home/ssu/Azas/tools/smoke/smoke_cocktail_dryrun_sequence.sh
+/home/ssu/Azas/tools/checks/verify_control_readiness.sh
 ```

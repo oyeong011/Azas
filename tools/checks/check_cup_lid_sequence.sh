@@ -30,7 +30,7 @@ run_stability_check() {
   echo "[Azas] Checking ${label} detection stability; no robot/RG2 commands will be sent."
 
   set +e
-  /home/ssu/Azas/tools/check_detection_stability.sh \
+  /home/ssu/Azas/tools/checks/check_detection_stability.sh \
     "$@" \
     --topic "${STABILITY_TOPIC}" \
     --duration "${STABILITY_DURATION}" \

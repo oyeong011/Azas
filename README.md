@@ -18,6 +18,20 @@ source install/setup.bash
 
 ---
 
+## 처음 온 팀원은 여기부터
+
+| 목적 | 문서 |
+|------|------|
+| 처음 빌드하고 드라이런까지 확인 | `docs/onboarding/01-quickstart-kor.md` |
+| 패키지별 담당 영역 이해 | `docs/onboarding/02-role-map-kor.md` |
+| `tools/` 명령어 분류 이해 | `docs/reference/command-taxonomy.md` |
+
+룰베이스 담당자는 먼저 `src/azas_voice/azas_voice/command_parser.py`,
+`src/azas_voice/azas_voice/recipe_catalog.py`,
+`src/azas_voice/config/recipes.yaml`을 봅니다.
+
+---
+
 ## MVP-1 목표
 
 ```
@@ -178,3 +192,6 @@ bash tools/smoke/smoke_cocktail_dryrun_sequence.sh  # 칵테일 시퀀스 스모
 | `docs/tf_debug_checklist.md` | 카메라-베이스 TF 디버그 체크리스트 |
 | `docs/full_cocktail_workflow_plan.md` | 전체 칵테일 워크플로우 마일스톤 |
 | `docs/recovery_after_poweroff.md` | 전원 차단 후 복구 절차 |
+| `docs/onboarding/01-quickstart-kor.md` | 신규 협업자 빠른 시작 |
+| `docs/onboarding/02-role-map-kor.md` | 역할별 패키지 맵 |
+| `docs/reference/command-taxonomy.md` | 명령어와 도구 분류 기준 |

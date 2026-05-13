@@ -18,4 +18,4 @@ cleanup() {
 }
 trap cleanup EXIT
 
-python3 /home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.py
+python3 /home/ssu/Azas/tools/smoke/smoke_cocktail_dryrun_sequence.py

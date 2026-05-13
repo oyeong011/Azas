@@ -5,6 +5,9 @@ set -euo pipefail
 # strict live gate. This script does not command Doosan motion or RG2 services.
 
 REPORT="${REPORT:-/tmp/azas_field_no_motion_report.txt}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHECKS_DIR="${ROOT_DIR}/tools/checks"
+RUN_DIR="${ROOT_DIR}/tools/run"
 RUN_DEPTH_SAMPLE="${RUN_DEPTH_SAMPLE:-true}"
 RUN_LID_STABILITY="${RUN_LID_STABILITY:-false}"
 RUN_CUP_STABILITY="${RUN_CUP_STABILITY:-false}"
@@ -69,17 +72,17 @@ run_optional_step() {
   echo "live_gate_max_age_sec=${LIVE_GATE_MAX_AGE_SEC}"
 } | tee -a "${REPORT}"
 
-run_step "Connection stage" /home/ssu/Azas/tools/check_connection_stage.sh || true
+run_step "Connection stage" "${CHECKS_DIR}/check_connection_stage.sh" || true
 
 run_optional_step "${RUN_DEPTH_SAMPLE}" "Depth projection sample" \
-  /home/ssu/Azas/tools/check_depth_projection_sample.sh || true
+  "${CHECKS_DIR}/check_depth_projection_sample.sh" || true
 
 if [[ "${RUN_LID_STABILITY}" == "true" && "${RUN_CUP_STABILITY}" == "true" && "${USE_CUP_LID_SEQUENCE}" == "true" ]]; then
   run_step "Cup/lid detection stability sequence" env \
     STABILITY_DURATION="${STABILITY_DURATION}" \
     STABILITY_MIN_SAMPLES="${STABILITY_MIN_SAMPLES}" \
     STABILITY_MIN_DETECTED_RATIO="${STABILITY_MIN_DETECTED_RATIO}" \
-    /home/ssu/Azas/tools/check_cup_lid_sequence.sh || true
+    "${CHECKS_DIR}/check_cup_lid_sequence.sh" || true
 
   if grep -q '^\[RESULT\] lid: PASS$' "${REPORT}" 2>/dev/null; then
     echo "[RESULT] Lid detection stability: PASS" | tee -a "${REPORT}"
@@ -96,14 +99,14 @@ if [[ "${RUN_LID_STABILITY}" == "true" && "${RUN_CUP_STABILITY}" == "true" && "$
   fi
 else
   run_optional_step "${RUN_LID_STABILITY}" "Lid detection stability" \
-    /home/ssu/Azas/tools/check_detection_stability.sh \
+    "${CHECKS_DIR}/check_detection_stability.sh" \
     --expect-class lid \
     --duration "${STABILITY_DURATION}" \
     --min-samples "${STABILITY_MIN_SAMPLES}" \
     --min-detected-ratio "${STABILITY_MIN_DETECTED_RATIO}" || true
 
   run_optional_step "${RUN_CUP_STABILITY}" "Cup detection stability" \
-    /home/ssu/Azas/tools/check_detection_stability.sh \
+    "${CHECKS_DIR}/check_detection_stability.sh" \
     --expect-class cup \
     --duration "${STABILITY_DURATION}" \
     --min-samples "${STABILITY_MIN_SAMPLES}" \
@@ -113,7 +116,7 @@ fi
 run_step "Live hardware gate" env \
   STRICT="${STRICT_LIVE_GATE}" \
   GATE_STAMP="${GATE_STAMP}" \
-  /home/ssu/Azas/tools/check_live_hardware_gates.sh || true
+  "${CHECKS_DIR}/check_live_hardware_gates.sh" || true
 
 {
   echo
@@ -124,7 +127,7 @@ run_step "Live hardware gate" env \
     age_sec=$((now_sec - stamp_sec))
     if (( age_sec <= LIVE_GATE_MAX_AGE_SEC )); then
       echo "[PASS] Fresh strict live gate stamp exists: ${GATE_STAMP} age=${age_sec}s"
-      echo "Next allowed entrypoint: /home/ssu/Azas/tools/run_robot_real.sh"
+      echo "Next allowed entrypoint: ${RUN_DIR}/run_robot_real.sh"
     else
       echo "[BLOCKED] Strict live gate stamp is stale: ${GATE_STAMP} age=${age_sec}s > ${LIVE_GATE_MAX_AGE_SEC}s"
       failures=$((failures + 1))
@@ -132,7 +135,7 @@ run_step "Live hardware gate" env \
   else
     echo "[BLOCKED] Real motion remains blocked until strict live gate passes and writes ${GATE_STAMP}."
     echo "Typical next step: connect/start Doosan and RG2 services, fill measured calibration/safety config, then rerun:"
-    echo "  STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true /home/ssu/Azas/tools/field_no_motion_report.sh"
+    echo "  STRICT_LIVE_GATE=true RUN_LID_STABILITY=true RUN_CUP_STABILITY=true ${RUN_DIR}/field_no_motion_report.sh"
     if [[ "${STRICT_LIVE_GATE}" == "true" ]]; then
       failures=$((failures + 1))
     fi

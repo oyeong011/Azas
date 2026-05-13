@@ -44,7 +44,7 @@ def main() -> int:
     if not args.enable_real_motion:
         print("mode=planning_only")
         print("No real robot motion was commanded.")
-        print("Run tools/check_observe_pose_planning_only.sh to validate MoveIt plan().")
+        print("Run tools/checks/check_observe_pose_planning_only.sh to validate MoveIt plan().")
         return 0
 
     missing = []

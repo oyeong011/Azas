@@ -13,7 +13,7 @@ source /opt/ros/humble/setup.bash
 source /home/ssu/Azas/install/setup.bash
 set -u
 
-exec python3 /home/ssu/Azas/tools/check_depth_projection_sample.py \
+exec python3 /home/ssu/Azas/tools/checks/check_depth_projection_sample.py \
   --depth-topic "${DEPTH_TOPIC}" \
   --camera-info-topic "${CAMERA_INFO_TOPIC}" \
   --timeout "${TIMEOUT}" \

@@ -5,7 +5,7 @@ set -euo pipefail
 # fake CupDetection -> pose bridge -> tumbler_floor_place_node with
 # enable_hardware=true -> fake Doosan MoveLine + fake RG2 Trigger services.
 #
-# This sends service requests only to tools/fake_hardware_services.py.
+# This sends service requests only to tools/smoke/fake_hardware_services.py.
 
 STATUS_FILE="${STATUS_FILE:-/tmp/azas_smoke_fake_hardware_status.txt}"
 LOG_FILE="${LOG_FILE:-/tmp/azas_smoke_fake_hardware_launch.log}"
@@ -80,11 +80,11 @@ assert_log_contains() {
 echo "[Azas] Starting fake hardware services"
 assert_no_preexisting_fake_targets
 if [[ -n "${SERVICE_PREFIX}" ]]; then
-  python3 /home/ssu/Azas/tools/fake_hardware_services.py \
+  python3 /home/ssu/Azas/tools/smoke/fake_hardware_services.py \
     --ros-args -p service_prefix:="${SERVICE_PREFIX}" \
     >"${FAKE_LOG_FILE}" 2>&1 &
 else
-  python3 /home/ssu/Azas/tools/fake_hardware_services.py \
+  python3 /home/ssu/Azas/tools/smoke/fake_hardware_services.py \
     >"${FAKE_LOG_FILE}" 2>&1 &
 fi
 FAKE_PID=$!

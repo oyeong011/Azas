@@ -89,21 +89,9 @@ def compute_no_motion_pick_plan(
     if lift_z_offset_m < 0.0:
         raise ValueError("lift_z_offset_m must be non-negative")
 
-    pick_pose = Pose()
-    pick_pose.position = tumbler_pose.position
-    pick_pose.orientation = tumbler_pose.orientation
-
-    approach_pose = Pose()
-    approach_pose.position.x = tumbler_pose.position.x
-    approach_pose.position.y = tumbler_pose.position.y
-    approach_pose.position.z = tumbler_pose.position.z + approach_z_offset_m
-    approach_pose.orientation = tumbler_pose.orientation
-
-    lift_pose = Pose()
-    lift_pose.position.x = tumbler_pose.position.x
-    lift_pose.position.y = tumbler_pose.position.y
-    lift_pose.position.z = tumbler_pose.position.z + lift_z_offset_m
-    lift_pose.orientation = tumbler_pose.orientation
+    pick_pose = _copy_pose(tumbler_pose)
+    approach_pose = _pose_with_z_offset(tumbler_pose, approach_z_offset_m)
+    lift_pose = _pose_with_z_offset(tumbler_pose, lift_z_offset_m)
 
     return NoMotionPickPlan(
         pick_pose=pick_pose,
@@ -147,8 +135,7 @@ def compute_side_grasp_plan(
     elif config.side_approach_axis == "+y":
         approach_pose.position.y = grasp_pose.position.y - approach_distance_m
 
-    lift_pose = _copy_pose(grasp_pose)
-    lift_pose.position.z = grasp_pose.position.z + config.lift_offset_m
+    lift_pose = _pose_with_z_offset(grasp_pose, config.lift_offset_m)
 
     warning = "orientation placeholder; no real robot side grasp allowed"
     if orientation_warning:
@@ -254,4 +241,10 @@ def _copy_pose(source: Pose) -> Pose:
     pose.orientation.y = source.orientation.y
     pose.orientation.z = source.orientation.z
     pose.orientation.w = source.orientation.w
+    return pose
+
+
+def _pose_with_z_offset(source: Pose, offset_m: float) -> Pose:
+    pose = _copy_pose(source)
+    pose.position.z = source.position.z + offset_m
     return pose

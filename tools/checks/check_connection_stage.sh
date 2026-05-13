@@ -10,7 +10,7 @@ CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/color/camera_info}"
 CUP_DETECTION_TOPIC="${CUP_DETECTION_TOPIC:-/azas/cup_detection}"
 TUMBLER_POSE_TOPIC="${TUMBLER_POSE_TOPIC:-/jarvis/tumbler_dispenser/tumbler_pose}"
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"
-REAL_MOTION_CONFIG_CHECK="${REAL_MOTION_CONFIG_CHECK:-/home/ssu/Azas/tools/check_real_motion_config.sh}"
+REAL_MOTION_CONFIG_CHECK="${REAL_MOTION_CONFIG_CHECK:-/home/ssu/Azas/tools/checks/check_real_motion_config.sh}"
 ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG:---no-daemon}"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-/tmp/azas_ros_logs}"
 
@@ -164,15 +164,15 @@ echo
 echo "[Azas] Recommended next step:"
 if [[ "${camera_topics_ok}" != "true" ]]; then
   echo "  Connect/start the RealSense camera first, then run:"
-  echo "    /home/ssu/Azas/tools/run_robot_dryrun.sh"
-  echo "    /home/ssu/Azas/tools/check_robot_detection.sh"
-  echo "    /home/ssu/Azas/tools/check_depth_projection_sample.sh"
+  echo "    /home/ssu/Azas/tools/run/run_robot_dryrun.sh"
+  echo "    /home/ssu/Azas/tools/checks/check_robot_detection.sh"
+  echo "    /home/ssu/Azas/tools/checks/check_depth_projection_sample.sh"
 elif [[ "${detection_ok}" != "true" || "${pose_ok}" != "true" || "${detection_sample_ok}" != "true" ]]; then
   echo "  Camera topics exist, but live cup/lid detection is not confirmed yet."
   echo "  Put the tumbler/lid clearly in the color camera view and rerun:"
-  echo "    /home/ssu/Azas/tools/run_robot_dryrun.sh"
-  echo "    /home/ssu/Azas/tools/check_robot_detection.sh"
-  echo "    /home/ssu/Azas/tools/check_connection_stage.sh"
+  echo "    /home/ssu/Azas/tools/run/run_robot_dryrun.sh"
+  echo "    /home/ssu/Azas/tools/checks/check_robot_detection.sh"
+  echo "    /home/ssu/Azas/tools/checks/check_connection_stage.sh"
 elif [[ "${robot_services_ok}" != "true" ]]; then
   echo "  Camera/perception graph is present. Next connect Doosan/RG2 for no-motion service checks."
   echo "  Do not run real motion yet."
@@ -181,5 +181,5 @@ elif [[ "${config_ok}" != "true" ]]; then
   echo "  Fill calibration.yaml and safety.yaml from measured values, then run strict live gates."
 else
   echo "  All quick gates are present. Run the strict live gate before any real motion:"
-  echo "    STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/check_live_hardware_gates.sh"
+  echo "    STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools/checks/check_live_hardware_gates.sh"
 fi

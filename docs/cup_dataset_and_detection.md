@@ -47,14 +47,14 @@ The existing `test_predictions/centers.csv` sample has 18 predictions against 19
 Run:
 
 ```bash
-/home/ssu/Azas/tools/check_static_cup_lid_dataset.py
+/home/ssu/Azas/tools/checks/check_static_cup_lid_dataset.py
 ```
 
 This gate proves only that static images, labels, weights, and prior predictions are present and internally usable. It does not prove depth, hand-eye calibration, camera-to-base TF, or real robot coordinates.
 
 ## C. Auto Label With YOLO
 
-Use `tools/auto_label_yolo_cups.py` to bootstrap labels from a pretrained Ultralytics COCO detector. The script maps the COCO class named `cup` to local class id `0`.
+Use `tools/perception/auto_label_yolo_cups.py` to bootstrap labels from a pretrained Ultralytics COCO detector. The script maps the COCO class named `cup` to local class id `0`.
 
 Recommended flow:
 
@@ -62,8 +62,8 @@ Recommended flow:
 python3 -m venv /tmp/azas-yolo
 source /tmp/azas-yolo/bin/activate
 pip install ultralytics
-python3 tools/auto_label_yolo_cups.py --dry-run
-python3 tools/auto_label_yolo_cups.py --overwrite
+python3 tools/perception/auto_label_yolo_cups.py --dry-run
+python3 tools/perception/auto_label_yolo_cups.py --overwrite
 ```
 
 Then manually review the labels before training. The sample images include light or transparent cups on a light tabletop, so generic COCO detection may miss or under-box some cups.
@@ -81,7 +81,7 @@ aligned depth + CameraInfo
 -> MoveIt PlanningScene + pick_and_align
 ```
 
-`tools/depth_rule_cup_detector.py` contains a dependency-light depth utility for this path. It is meant to be wired into `azas_perception` after the actual camera topics, frame ids, depth scale, and workspace ROI are confirmed.
+`tools/perception/depth_rule_cup_detector.py` contains a dependency-light depth utility for this path. It is meant to be wired into `azas_perception` after the actual camera topics, frame ids, depth scale, and workspace ROI are confirmed.
 
 ## Safety Boundary
 

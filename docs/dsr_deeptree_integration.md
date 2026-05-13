@@ -20,7 +20,7 @@ Azas now has a no-motion cocktail sequence adapter:
 
 - `azas_task_manager/cocktail_dryrun_sequence_node.py`
 - launch: `ros2 launch azas_bringup cocktail_dryrun.launch.py`
-- smoke test: `/home/ssu/Azas/tools/smoke_cocktail_dryrun_sequence.sh`
+- smoke test: `/home/ssu/Azas/tools/smoke/smoke_cocktail_dryrun_sequence.sh`
 
 The node applies DSR_DeepTree's stepwise feedback idea to the Azas workflow:
 

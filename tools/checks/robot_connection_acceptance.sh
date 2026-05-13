@@ -65,11 +65,11 @@ run_step "Strict field no-motion report" env \
   RUN_LID_STABILITY="${RUN_LID_STABILITY}" \
   RUN_CUP_STABILITY="${RUN_CUP_STABILITY}" \
   LIVE_GATE_MAX_AGE_SEC="${LIVE_GATE_MAX_AGE_SEC}" \
-  /home/ssu/Azas/tools/field_no_motion_report.sh || true
+  /home/ssu/Azas/tools/run/field_no_motion_report.sh || true
 
 if [[ "${RUN_HAND_EYE}" == "true" ]]; then
   section "Hand-eye readiness"
-  if /home/ssu/Azas/tools/check_hand_eye_readiness.sh >"${HAND_EYE_REPORT}" 2>&1; then
+  if /home/ssu/Azas/tools/checks/check_hand_eye_readiness.sh >"${HAND_EYE_REPORT}" 2>&1; then
     cat "${HAND_EYE_REPORT}" | tee -a "${REPORT}" >/dev/null || true
     echo "[RESULT] Hand-eye readiness: PASS" | tee -a "${REPORT}"
   else
@@ -87,7 +87,7 @@ if [[ "${RUN_COMPLETION_AUDIT}" == "true" ]]; then
     REPORT="${COMPLETION_REPORT}" \
     FIELD_REPORT="${FIELD_REPORT}" \
     LIVE_GATE_MAX_AGE_SEC="${LIVE_GATE_MAX_AGE_SEC}" \
-    /home/ssu/Azas/tools/completion_audit.sh || true
+    /home/ssu/Azas/tools/checks/completion_audit.sh || true
 else
   section "Completion audit"
   echo "[SKIP] Completion audit disabled" | tee -a "${REPORT}"
@@ -98,7 +98,7 @@ fi
   echo "## Verdict"
   if [[ "${failures}" -eq 0 ]]; then
     echo "[PASS] Robot connection acceptance passed."
-    echo "Next allowed entrypoint remains gated: /home/ssu/Azas/tools/run_robot_real.sh"
+    echo "Next allowed entrypoint remains gated: /home/ssu/Azas/tools/run/run_robot_real.sh"
   else
     echo "[BLOCKED] Robot connection acceptance failed: failures=${failures}"
     echo "Do not run real robot motion. Fix the failed gate(s), then rerun this script."

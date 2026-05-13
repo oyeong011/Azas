@@ -31,7 +31,7 @@ fi
 
 if [[ "${ROBOT_HOST}" == "127.0.0.1" || "${ROBOT_HOST}" == "localhost" ]]; then
   echo "[Azas] Refusing Doosan real no-motion bringup: ROBOT_HOST points to localhost."
-  echo "[Azas] Use /home/ssu/Azas/tools/run_doosan_virtual_m0609.sh for virtual mode."
+  echo "[Azas] Use /home/ssu/Azas/tools/run/run_doosan_virtual_m0609.sh for virtual mode."
   exit 1
 fi
 
@@ -51,7 +51,7 @@ set -u
 echo "[Azas] Starting Doosan ${MODEL} real no-motion bringup"
 echo "[Azas] mode=real name=${ROBOT_NAME:-<none>} host=${ROBOT_HOST} port=${ROBOT_PORT}"
 echo "[Azas] This entrypoint does not launch Azas hardware motion or RG2 commands."
-echo "[Azas] After startup, run /home/ssu/Azas/tools/robot_connection_acceptance.sh in another terminal."
+echo "[Azas] After startup, run /home/ssu/Azas/tools/checks/robot_connection_acceptance.sh in another terminal."
 
 launch_args=(
   host:="${ROBOT_HOST}" \
