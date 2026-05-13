@@ -77,9 +77,28 @@ Planning-only side grasp check:
 /home/ssu/Azas/tools/check_side_grasp_planning_only.sh
 ```
 
-Planning-only means trajectory feasibility preparation/reporting only. It is not
-real readiness, and `alignment_executor_node` keeps `allow_execute=false` by
-default.
+Candidate sweep for planning-only side grasp feasibility:
+
+```bash
+python3 /home/ssu/Azas/tools/sweep_side_grasp_planning_candidates.py \
+  --planning-group manipulator \
+  --ee-link tool0 \
+  --cup-reference-x 0.42 \
+  --cup-reference-y -0.24 \
+  --cup-reference-z 0.05 \
+  --max-candidates 100
+```
+
+Planning-only means trajectory feasibility preparation/reporting only. When
+verified `planning_group` and `ee_link` are provided, `alignment_executor_node`
+constructs MoveItPy planning requests for approach, grasp, and lift poses and
+calls `PlanningComponent.plan()`. It is not real readiness, and
+`alignment_executor_node` keeps `allow_execute=false` by default.
+Current evidence points to `tool0` as the more relevant TCP candidate than the
+SRDF chain tip `link_6`, but the final TCP link/quaternion must still be
+measured. Planning success for a swept quaternion/axis/height candidate is only a
+feasibility signal; it is not proof of real cup contact, grip quality, or safe
+robot execution.
 
 No-motion action smoke:
 

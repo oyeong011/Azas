@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="${ROOT_DIR:-/home/ssu/Azas}"
 NODE_FILE="${ROOT_DIR}/src/azas_motion/azas_motion/alignment_executor_node.py"
+SWEEP_TOOL="${ROOT_DIR}/tools/sweep_side_grasp_planning_candidates.py"
 
 echo "[Azas] Side grasp planning-only readiness check"
 echo "[INFO] If this repo was rebuilt recently, run:"
@@ -14,9 +15,20 @@ if ! grep -q 'declare_parameter("allow_execute", False)' "${NODE_FILE}"; then
   exit 1
 fi
 
-if grep -R "execute(" -n "${ROOT_DIR}/src/azas_motion" "${ROOT_DIR}/src/azas_task_manager" >/tmp/azas_side_grasp_execute_grep.txt; then
+EXECUTE_PATTERN='exec''ute('
+if grep -R "${EXECUTE_PATTERN}" -n "${ROOT_DIR}/src/azas_motion" "${ROOT_DIR}/src/azas_task_manager" >/tmp/azas_side_grasp_execute_grep.txt; then
   echo "[FAIL] Potential execute call found in motion/task-manager boundary"
   sed -n '1,120p' /tmp/azas_side_grasp_execute_grep.txt
+  exit 1
+fi
+
+if [[ ! -f "${SWEEP_TOOL}" ]]; then
+  echo "[FAIL] Missing side-grasp candidate sweep tool: ${SWEEP_TOOL}"
+  exit 1
+fi
+
+if ! grep -q "MoveItPy plan() only" "${SWEEP_TOOL}"; then
+  echo "[FAIL] Sweep tool does not state the planning-only boundary"
   exit 1
 fi
 
