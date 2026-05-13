@@ -56,6 +56,19 @@ Power-off recovery: `docs/recovery_after_poweroff.md`, `docs/current_handoff_202
 | RG2 actuation verified | `tools/run_robot_dryrun.sh`, `tools/run_robot_real.sh`, `jarvis` RG2 services | Fake RG2 Trigger service path works; real RG2 hardware/fake-driver feedback still not field-verified | Missing |
 | Real robot hardware gate verified | `tools/run_robot_real.sh`, `docs/safety_checklist.md` | Script requires a recent strict live-gate stamp plus explicit phrase; e-stop/workspace/operator gates not field-verified | Missing |
 
+## Gripper Service Contract
+
+| Service name | Service type | Provider | Fake/dry-run 여부 | Real hardware 여부 | Current status | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `/jarvis/rg2/open` | `std_srvs/srv/Trigger` | `jarvis` RG2 trigger launch or `tools/fake_hardware_services.py` | Yes when fake services are started | Not proven by gate | Floor-place default open service | Presence/type only; not real actuation evidence. |
+| `/jarvis/rg2/close` | `std_srvs/srv/Trigger` | `jarvis` RG2 trigger launch or `tools/fake_hardware_services.py` | Yes when fake services are started | Not proven by gate | Floor-place default close service | Presence/type only; not real actuation evidence. |
+| `/jarvis/rg2/set_width` | `azas_interfaces/srv/SetGripper` | `tools/fake_hardware_services.py`; real adapter pending | Yes in fake smoke | No real adapter in Azas | Checked as service shape only | Width/force command logging in fake mode does not prove RG2 units or hardware response. |
+| `/azas/gripper/open_close` | `azas_interfaces/srv/SetGripper` | `src/azas_gripper/azas_gripper/rg2_gripper_node.py` | Placeholder boundary | No | Internal Azas service | Separate from `/jarvis/rg2/*`; not used as the floor-place gripper adapter. |
+
+`tools/check_live_hardware_gates.sh` checks service existence and type only. It
+does not call RG2 services and does not prove open/close/set-width movement.
+Fake smoke tests must not be interpreted as real RG2 readiness.
+
 ## Current Stop Condition
 
 Do not claim real robot-control readiness until these are verified on the robot PC:

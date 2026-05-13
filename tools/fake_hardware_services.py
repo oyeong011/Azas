@@ -28,7 +28,7 @@ class FakeHardwareServices(Node):
         self.create_service(Trigger, "/jarvis/rg2/close", self.on_close)
         self.create_service(SetGripper, "/jarvis/rg2/set_width", self.on_set_width)
         self.get_logger().info(
-            "Fake hardware services ready: "
+            "Fake/no-motion hardware services ready; does not command real RG2 or Doosan: "
             f"{motion_prefix}/move_joint, {motion_prefix}/move_line, "
             "/jarvis/rg2/open, /jarvis/rg2/close, /jarvis/rg2/set_width"
         )
@@ -52,19 +52,19 @@ class FakeHardwareServices(Node):
 
     def on_open(self, request, response):
         response.success = True
-        response.message = "fake RG2 open"
+        response.message = "fake RG2 open; does not command real RG2"
         self.get_logger().info(response.message)
         return response
 
     def on_close(self, request, response):
         response.success = True
-        response.message = "fake RG2 close"
+        response.message = "fake RG2 close; does not command real RG2"
         self.get_logger().info(response.message)
         return response
 
     def on_set_width(self, request, response):
         response.success = True
-        response.message = "fake RG2 set_width"
+        response.message = "fake RG2 set_width; does not command real RG2"
         self.get_logger().info(
             "fake RG2 set_width: "
             f"command={request.command} width_m={request.width_m:.3f} force_n={request.force_n:.1f}"

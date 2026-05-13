@@ -4,11 +4,15 @@ from rclpy.node import Node
 
 
 class RG2GripperNode(Node):
-    """Placeholder RG2 boundary. Replace internals after hardware interface is confirmed."""
+    """Azas-internal placeholder boundary; it does not command a real RG2."""
 
     def __init__(self):
         super().__init__("rg2_gripper_node")
         self.create_service(SetGripper, "/azas/gripper/open_close", self.on_set_gripper)
+        self.get_logger().warn(
+            "Azas internal SetGripper placeholder ready on /azas/gripper/open_close; "
+            "does not command real RG2 and does not provide /jarvis/rg2/* services"
+        )
 
     def on_set_gripper(self, request, response):
         command = request.command.lower()
@@ -22,7 +26,10 @@ class RG2GripperNode(Node):
             f"force_n={request.force_n:.1f}"
         )
         response.success = True
-        response.message = "accepted fake-mode placeholder command; RG2 hardware binding and units 확인 필요"
+        response.message = (
+            "accepted no-motion placeholder command; does not command real RG2; "
+            "RG2 hardware binding and units 확인 필요"
+        )
         return response
 
 
@@ -32,4 +39,3 @@ def main(args=None):
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
-

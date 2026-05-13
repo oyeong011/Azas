@@ -36,6 +36,17 @@ source /home/ssu/Azas/install/setup.bash
 source /home/ssu/ros2_ws/install/setup.bash
 set -u
 
+assert_no_preexisting_fake_targets() {
+  ros2 service list --no-daemon >/tmp/azas_smoke_fake_hardware_pre_services.txt 2>/tmp/azas_smoke_fake_hardware_pre_services.err || true
+  for service in /jarvis/rg2/open /jarvis/rg2/close /jarvis/rg2/set_width; do
+    if grep -qx "${service}" /tmp/azas_smoke_fake_hardware_pre_services.txt; then
+      echo "[FAIL] refusing fake smoke: ${service} already exists before fake_hardware_services.py starts"
+      echo "[FAIL] This smoke must only talk to the local fake/no-motion RG2 services."
+      exit 1
+    fi
+  done
+}
+
 cleanup() {
   if [[ -n "${LAUNCH_PID:-}" ]] && kill -0 "${LAUNCH_PID}" 2>/dev/null; then
     kill "${LAUNCH_PID}" 2>/dev/null || true
@@ -67,6 +78,7 @@ assert_log_contains() {
 }
 
 echo "[Azas] Starting fake hardware services"
+assert_no_preexisting_fake_targets
 if [[ -n "${SERVICE_PREFIX}" ]]; then
   python3 /home/ssu/Azas/tools/fake_hardware_services.py \
     --ros-args -p service_prefix:="${SERVICE_PREFIX}" \
@@ -80,7 +92,10 @@ FAKE_PID=$!
 timeout 12s bash -lc '
   while true; do
     ros2 service list --no-daemon >/tmp/azas_smoke_fake_hardware_services.txt 2>/tmp/azas_smoke_fake_hardware_services.err || true
-    if grep -qx "/jarvis/rg2/open" /tmp/azas_smoke_fake_hardware_services.txt && grep -q "/motion/move_line\\|/.*/motion/move_line" /tmp/azas_smoke_fake_hardware_services.txt; then
+    if grep -qx "/jarvis/rg2/open" /tmp/azas_smoke_fake_hardware_services.txt &&
+       grep -qx "/jarvis/rg2/close" /tmp/azas_smoke_fake_hardware_services.txt &&
+       grep -qx "/jarvis/rg2/set_width" /tmp/azas_smoke_fake_hardware_services.txt &&
+       grep -q "/motion/move_line\\|/.*/motion/move_line" /tmp/azas_smoke_fake_hardware_services.txt; then
       exit 0
     fi
     sleep 0.2

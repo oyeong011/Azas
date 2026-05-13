@@ -203,6 +203,8 @@ echo "[Azas] Live hardware gate check. No motion commands will be sent."
 echo "[Azas] topics: ${COLOR_TOPIC}, ${DEPTH_TOPIC}, ${CAMERA_INFO_TOPIC}"
 echo "[Azas] detection: ${CUP_DETECTION_TOPIC} -> ${TUMBLER_POSE_TOPIC}"
 echo "[Azas] service_prefix=${SERVICE_PREFIX:-<none>} strict=${STRICT}"
+echo "[Azas] RG2 note: Trigger open/close service existence is not RG2 actuation proof."
+echo "[Azas] RG2 note: fake service pass is not real RG2 readiness; real RG2 needs hardware confirmation and operator clearance."
 
 require_topic "${COLOR_TOPIC}" "color image topic" && color_topic_ok=true
 require_topic "${DEPTH_TOPIC}" "aligned depth topic" && depth_topic_ok=true
@@ -268,6 +270,8 @@ require_service_contract "$(motion_service move_line)" "Doosan MoveLine service"
 require_service_contract "$(motion_service move_joint)" "Doosan MoveJoint service" "dsr_msgs2/srv/MoveJoint"
 optional_service_contract "/jarvis/rg2/open" "RG2 open Trigger service" "std_srvs/srv/Trigger"
 optional_service_contract "/jarvis/rg2/close" "RG2 close Trigger service" "std_srvs/srv/Trigger"
+optional_service_contract "/jarvis/rg2/set_width" "RG2 set_width no-motion/custom width service" "azas_interfaces/srv/SetGripper"
+echo "[Azas] RG2 contract note: /jarvis/rg2/set_width checks the SetGripper service shape only; it does not command or validate real RG2 motion."
 
 if [[ "${STRICT}" == "true" ]]; then
   if "${REAL_MOTION_CONFIG_CHECK}"; then

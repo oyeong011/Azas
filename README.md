@@ -193,6 +193,19 @@ Run the fake-hardware service call smoke:
 
 This verifies `enable_hardware:=true` against fake Doosan `MoveLine` and fake RG2 Trigger services only.
 
+Current gripper service contract:
+
+| Service name | Service type | Provider | Fake/dry-run | Real hardware | Current status | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `/jarvis/rg2/open` | `std_srvs/srv/Trigger` | `jarvis` RG2 trigger launch or `tools/fake_hardware_services.py` | Yes when provided by fake services | Not proven by Azas gates | Expected by floor-place launch | Existence/type does not prove RG2 actuation. |
+| `/jarvis/rg2/close` | `std_srvs/srv/Trigger` | `jarvis` RG2 trigger launch or `tools/fake_hardware_services.py` | Yes when provided by fake services | Not proven by Azas gates | Expected by floor-place launch | Existence/type does not prove RG2 actuation. |
+| `/jarvis/rg2/set_width` | `azas_interfaces/srv/SetGripper` | `tools/fake_hardware_services.py` in no-motion smoke; real adapter pending | Yes in fake smoke | Not connected | Explicit adapter required for real width/force control | Fake service logs requests and does not command real RG2. |
+| `/azas/gripper/open_close` | `azas_interfaces/srv/SetGripper` | `azas_gripper/rg2_gripper_node.py` | Placeholder only | No | Azas internal boundary | Not wired into `/jarvis/rg2/*`; not a real RG2 driver. |
+
+Fake service pass is not real RG2 readiness. Real RG2 use still requires separate
+hardware confirmation, operator clearance, unit/range verification, and a real
+adapter that is not implemented here.
+
 After starting the live dry-run bringup on the robot PC, check the field gates without commanding motion:
 
 ```bash
