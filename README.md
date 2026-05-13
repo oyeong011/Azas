@@ -55,11 +55,31 @@ Start with:
 
 `PickAndAlignActionServer` defaults to `execution_mode=no_motion`. It waits for a
 `PoseStamped` on `/jarvis/tumbler_dispenser/tumbler_pose`, requires
-`header.frame_id: base_link` by default, computes pick/approach/lift poses for
-feedback/logging, and returns `NO_MOTION_PICK_SEQUENCE_OK` after
-`DONE_NO_MOTION`. It does not call MoveIt, Doosan motion, or real RG2 hardware.
+`header.frame_id: base_link` by default, and computes side-grasp
+approach/grasp/lift poses for feedback/logging. The default `grasp_mode=side`
+returns `NO_MOTION_SIDE_GRASP_OK` after `DONE_NO_MOTION`. It does not call
+MoveIt, Doosan motion, or real RG2 hardware.
 `execution_mode=skeleton` is still available for the original `SKELETON_ONLY`
-contract.
+contract, and `grasp_mode=vertical` keeps the earlier z-offset no-motion plan.
+
+Current side grasp is a no-motion approximation. The
+`/jarvis/tumbler_dispenser/tumbler_pose` position is treated only as a cup
+reference pose, `grasp_height_offset_m` is an offset from that reference, and
+`side_grasp_qx/qy/qz/qw` is only a planning-only TCP quaternion candidate. The
+quaternion is normalized before use and remains a placeholder until measured.
+Before any real side grasp, measured hand-eye/base-camera TF, cup center/radius,
+table height, TCP quaternion, gripper width/force, collision scene/clearance,
+operator clearance, and e-stop readiness must be verified with hardware gates.
+
+Planning-only side grasp check:
+
+```bash
+/home/ssu/Azas/tools/check_side_grasp_planning_only.sh
+```
+
+Planning-only means trajectory feasibility preparation/reporting only. It is not
+real readiness, and `alignment_executor_node` keeps `allow_execute=false` by
+default.
 
 No-motion action smoke:
 

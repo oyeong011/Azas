@@ -2,7 +2,11 @@ import time
 
 import rclpy
 from azas_interfaces.action import PickAndAlign
-from azas_motion.alignment import compute_no_motion_pick_plan
+from azas_motion.alignment import (
+    SideGraspConfig,
+    compute_no_motion_pick_plan,
+    compute_side_grasp_plan,
+)
 from geometry_msgs.msg import Pose, PoseStamped
 from rclpy.action import ActionServer
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -39,8 +43,22 @@ class PickAndAlignActionServer(Node):
         self.declare_parameter("fake_gripper_open_service", "/jarvis/rg2/open")
         self.declare_parameter("fake_gripper_close_service", "/jarvis/rg2/close")
         self.declare_parameter("call_fake_gripper_services", False)
+        self.declare_parameter("grasp_mode", "side")
         self.declare_parameter("approach_z_offset_m", 0.10)
         self.declare_parameter("lift_z_offset_m", 0.12)
+        self.declare_parameter("side_grasp_orientation_source", "parameter")
+        self.declare_parameter("side_grasp_qx", 0.0)
+        self.declare_parameter("side_grasp_qy", 0.0)
+        self.declare_parameter("side_grasp_qz", 0.0)
+        self.declare_parameter("side_grasp_qw", 1.0)
+        self.declare_parameter("side_approach_axis", "-x")
+        self.declare_parameter("side_approach_offset_m", 0.12)
+        self.declare_parameter("side_clearance_m", 0.02)
+        self.declare_parameter("cup_radius_m", 0.035)
+        self.declare_parameter("grasp_height_offset_m", 0.06)
+        self.declare_parameter("lift_offset_m", 0.12)
+        self.declare_parameter("min_grasp_z_m", 0.03)
+        self.declare_parameter("max_grasp_z_m", 0.40)
         self._callback_group = ReentrantCallbackGroup()
         self._latest_tumbler_pose = None
         self._pose_sub = self.create_subscription(
@@ -116,6 +134,18 @@ class PickAndAlignActionServer(Node):
                 f"Expected base_link pose, got {pose_msg.header.frame_id!r}; no real robot motion was commanded",
             )
 
+        grasp_mode = str(self.get_parameter("grasp_mode").value).strip().lower()
+        if grasp_mode == "side":
+            return self._execute_side_no_motion(goal_handle, feedback, pose_msg)
+        if grasp_mode == "vertical":
+            return self._execute_vertical_no_motion(goal_handle, feedback, pose_msg)
+        return self._fail_result(
+            goal_handle,
+            "UNSUPPORTED_GRASP_MODE",
+            f"Unsupported grasp_mode={grasp_mode!r}; no real robot motion was commanded",
+        )
+
+    def _execute_vertical_no_motion(self, goal_handle, feedback, pose_msg):
         detail = f"pose frame={pose_msg.header.frame_id} {self._pose_xyz(pose_msg.pose)}"
         self._publish_feedback(goal_handle, feedback, "PLAN_PICK_APPROACH_NO_MOTION", detail)
         try:
@@ -169,6 +199,106 @@ class PickAndAlignActionServer(Node):
         result.message = (
             "No-motion pick sequence completed from base_link tumbler pose. "
             "No real robot motion was commanded."
+        )
+        goal_handle.succeed()
+        return result
+
+    def _execute_side_no_motion(self, goal_handle, feedback, pose_msg):
+        try:
+            plan = compute_side_grasp_plan(
+                pose_msg.pose,
+                SideGraspConfig(
+                    orientation_source=str(
+                        self.get_parameter("side_grasp_orientation_source").value
+                    ),
+                    side_grasp_qx=float(self.get_parameter("side_grasp_qx").value),
+                    side_grasp_qy=float(self.get_parameter("side_grasp_qy").value),
+                    side_grasp_qz=float(self.get_parameter("side_grasp_qz").value),
+                    side_grasp_qw=float(self.get_parameter("side_grasp_qw").value),
+                    side_approach_axis=str(self.get_parameter("side_approach_axis").value),
+                    side_approach_offset_m=float(
+                        self.get_parameter("side_approach_offset_m").value
+                    ),
+                    side_clearance_m=float(self.get_parameter("side_clearance_m").value),
+                    cup_radius_m=float(self.get_parameter("cup_radius_m").value),
+                    grasp_height_offset_m=float(
+                        self.get_parameter("grasp_height_offset_m").value
+                    ),
+                    lift_offset_m=float(self.get_parameter("lift_offset_m").value),
+                    min_grasp_z_m=float(self.get_parameter("min_grasp_z_m").value),
+                    max_grasp_z_m=float(self.get_parameter("max_grasp_z_m").value),
+                ),
+            )
+        except ValueError as exc:
+            return self._fail_result(
+                goal_handle,
+                self._side_grasp_error_code(str(exc)),
+                f"{exc}; no real robot motion was commanded",
+            )
+        plan_detail = (
+            f"pose frame={pose_msg.header.frame_id} "
+            f"axis={plan.approach_axis} distance={plan.approach_distance_m:.3f} "
+            f"approach=({self._pose_xyz(plan.approach_pose)}) "
+            f"grasp=({self._pose_xyz(plan.grasp_pose)}) "
+            f"lift=({self._pose_xyz(plan.lift_pose)}) "
+            f"quat=({self._pose_quat(plan.grasp_pose)}) warning={plan.warning}"
+        )
+        self._publish_feedback(goal_handle, feedback, "COMPUTE_SIDE_GRASP", plan_detail)
+        self.get_logger().warn(
+            "No-motion side grasp plan: "
+            f"{plan_detail}. No Doosan, MoveIt, or real RG2 command will be sent."
+        )
+
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            "SIDE_APPROACH_NO_MOTION",
+            (
+                f"{self._pose_xyz(plan.approach_pose)} "
+                f"axis={plan.approach_axis} distance={plan.approach_distance_m:.3f}"
+            ),
+        )
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            "SIDE_PICK_NO_MOTION",
+            f"{self._pose_xyz(plan.grasp_pose)} warning={plan.warning}",
+        )
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            "FAKE_GRIPPER_CLOSE",
+            "No real RG2 command; optional fake Trigger only",
+        )
+        if not self._call_fake_gripper_if_enabled(
+            str(self.get_parameter("fake_gripper_close_service").value),
+            "close",
+        ):
+            return self._fail_result(
+                goal_handle,
+                "FAKE_GRIPPER_SERVICE_FAILED",
+                "Fake gripper close failed; no real robot motion was commanded",
+            )
+
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            "SIDE_LIFT_NO_MOTION",
+            self._pose_xyz(plan.lift_pose),
+        )
+        self._publish_feedback(
+            goal_handle,
+            feedback,
+            "DONE_NO_MOTION",
+            "No real robot motion was commanded; side grasp orientation is placeholder",
+        )
+
+        result = PickAndAlign.Result()
+        result.success = True
+        result.error_code = "NO_MOTION_SIDE_GRASP_OK"
+        result.message = (
+            "No-motion side grasp sequence completed from base_link cup reference pose. "
+            "No real robot motion was commanded. Side grasp orientation is placeholder."
         )
         goal_handle.succeed()
         return result
@@ -229,6 +359,21 @@ class PickAndAlignActionServer(Node):
     @staticmethod
     def _pose_xyz(pose: Pose) -> str:
         return f"x={pose.position.x:.3f} y={pose.position.y:.3f} z={pose.position.z:.3f}"
+
+    @staticmethod
+    def _pose_quat(pose: Pose) -> str:
+        return (
+            f"qx={pose.orientation.x:.6f} qy={pose.orientation.y:.6f} "
+            f"qz={pose.orientation.z:.6f} qw={pose.orientation.w:.6f}"
+        )
+
+    @staticmethod
+    def _side_grasp_error_code(error_text: str) -> str:
+        if error_text.startswith("UNSUPPORTED_SIDE_APPROACH_AXIS"):
+            return "UNSUPPORTED_SIDE_APPROACH_AXIS"
+        if error_text.startswith("SIDE_GRASP_Z_OUT_OF_BOUNDS"):
+            return "SIDE_GRASP_Z_OUT_OF_BOUNDS"
+        return "INVALID_SIDE_GRASP_CONFIG"
 
 
 def main(args=None):
