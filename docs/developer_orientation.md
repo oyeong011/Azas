@@ -29,6 +29,43 @@
 | Checks | `tools/checks` | 비-모션 점검 | 로봇/RG2 실제 동작 금지 |
 | Smoke | `tools/smoke` | fake hardware 자동 검증 | 실제 하드웨어 접촉 금지 |
 
+## 왜 Python 파일이 많은가
+
+2026-05-13 기준으로 `src`, `tools`, `/home/ssu/ros2_ws/src/Azas` 아래 Python 파일은 총 79개입니다. 많은 이유는 세 가지입니다.
+
+1. ROS 2는 실행 단위를 node로 쪼갭니다. 각 node는 `setup.py`의 `console_scripts`에 등록되는 Python 파일로 존재합니다.
+2. launch 파일도 Python입니다. `*.launch.py`는 일반 비즈니스 로직이 아니라 여러 node를 조립하는 실행 설정입니다.
+3. 실제 로봇 프로젝트라서 run/check/smoke 도구를 분리했습니다. 실제 모션 전 검증 단계가 많기 때문에 `tools` 아래 Python과 shell이 늘어납니다.
+
+현재 분포:
+
+| 영역 | Python 수 | 성격 |
+| --- | ---: | --- |
+| `/home/ssu/ros2_ws/src/Azas` | 20 | jarvis motion node, launch, setup |
+| `src/azas_bringup` | 10 | bringup launch 중심 |
+| `src/azas_voice` | 10 | STT/recipe/LLM mapper, launch, test |
+| `src/azas_perception` | 7 | YOLO, pose bridge, simulated detection, GPD adapter |
+| `src/azas_task_manager` | 5 | workflow plan, dry-run node, action server |
+| `src/azas_motion` | 4 | alignment helper와 executor |
+| `src/azas_calibration`, `src/azas_gripper` | 각 3 | 작은 ROS node 패키지 |
+| `tools/checks` | 7 | 비-모션 검증 |
+| `tools/smoke` | 3 | fake hardware smoke 지원 Python |
+| `tools/perception` | 3 | perception 데이터/라벨 보조 도구 |
+| `tools/pick` | 2 | pick 실험/감독 실행 도구 |
+| `tools/run` | 1 | 감독 관측 실행 도구 |
+
+따라서 파일이 많은 것 자체는 ROS 2 로봇 프로젝트에서는 어느 정도 정상입니다. 다만 현재는 아래 두 가지가 정리 문제입니다.
+
+- node/launch/tool이 한눈에 “운영용, 검증용, 실험용, 레거시”로 구분되지 않습니다.
+- jarvis 쪽 motion node에 stage별 로직이 길게 들어 있어 새 개발자가 읽기 어렵습니다.
+
+정리 방향은 Python 파일 수를 억지로 줄이는 것이 아니라, 공개 진입점과 내부 구현을 분리하는 것입니다.
+
+- 운영자가 실행할 것은 `tools/run`에만 둡니다.
+- 검증은 `tools/checks`와 `tools/smoke`로 나눕니다.
+- ROS node는 계속 패키지 안에 두되 README/docstring과 launch 상태 태그를 붙입니다.
+- 긴 motion node는 공통 service/gate helper와 stage primitive로 나눕니다.
+
 ## 현재 권장 파이프라인
 
 사용자가 말한 전체 칵테일 순서는 설계상 아래와 같습니다.
