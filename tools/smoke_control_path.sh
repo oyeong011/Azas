@@ -98,7 +98,7 @@ ros2 topic pub --once "${SMOKE_CUP_DETECTION_TOPIC}" azas_interfaces/msg/CupDete
     orientation: {w: 1.0}
   },
   confidence: 0.95,
-  status: 'detected:smoke_tumbler',
+  status: 'detected:upright class=smoke_tumbler',
   source: 'smoke_control_path'
 }" >/tmp/azas_smoke_control_path_pub.log
 

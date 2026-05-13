@@ -16,6 +16,7 @@ class CupDetectionPoseBridgeNode(Node):
         self.declare_parameter("min_confidence", 0.35)
         self.declare_parameter("use_grasp_pose", True)
         self.declare_parameter("require_status_prefix", "detected")
+        self.declare_parameter("require_upright_status", True)
         self.declare_parameter("target_frame", "base_link")
         self.declare_parameter("source_frame", "")
         self.declare_parameter("require_tf", True)
@@ -58,7 +59,18 @@ class CupDetectionPoseBridgeNode(Node):
             )
             return
         if required and not msg.status.startswith(required):
-            self.get_logger().warn(f"Ignoring detection status={msg.status!r}")
+            self.get_logger().warn(
+                f"Ignoring detection status={msg.status!r}; "
+                f"error_code={self._orientation_error_code(msg.status)}"
+            )
+            return
+        if bool(self.get_parameter("require_upright_status").value) and not msg.status.startswith(
+            "detected:upright"
+        ):
+            self.get_logger().warn(
+                "Ignoring non-upright cup detection; refusing to publish tumbler pose: "
+                f"status={msg.status!r} error_code={self._orientation_error_code(msg.status)}"
+            )
             return
 
         pose_msg = PoseStamped()
@@ -194,6 +206,14 @@ class CupDetectionPoseBridgeNode(Node):
             f"orientation=({orientation.x:.4f}, {orientation.y:.4f}, "
             f"{orientation.z:.4f}, {orientation.w:.4f})"
         )
+
+    @staticmethod
+    def _orientation_error_code(status: str) -> str:
+        if "unknown_orientation" in status or "orientation=unknown" in status:
+            return "CUP_ORIENTATION_UNKNOWN"
+        if status.startswith("rejected:") or not status.startswith("detected:upright"):
+            return "CUP_ORIENTATION_NOT_UPRIGHT"
+        return ""
 
 
 def main(args=None):

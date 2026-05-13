@@ -18,7 +18,7 @@ class SimulatedCupDetectionNode(Node):
         self.declare_parameter("publish_period_sec", 0.5)
         self.declare_parameter("publish_once", True)
         self.declare_parameter("confidence", 0.95)
-        self.declare_parameter("status", "detected:simulated_cup")
+        self.declare_parameter("status", "detected:upright class=simulated_cup")
         self.declare_parameter("source", "simulated_cup_detection_node")
         self.declare_parameter("grasp_x", 0.32)
         self.declare_parameter("grasp_y", -0.22)

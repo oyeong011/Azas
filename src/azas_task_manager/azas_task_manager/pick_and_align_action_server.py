@@ -2,6 +2,7 @@ import time
 
 import rclpy
 from azas_interfaces.action import PickAndAlign
+from azas_interfaces.msg import CupDetection
 from azas_motion.alignment import (
     SideGraspConfig,
     compute_no_motion_pick_plan,
@@ -39,6 +40,8 @@ class PickAndAlignActionServer(Node):
         self.declare_parameter("execution_mode", "no_motion")
         self.declare_parameter("tumbler_pose_topic", "/jarvis/tumbler_dispenser/tumbler_pose")
         self.declare_parameter("pose_wait_timeout_sec", 5.0)
+        self.declare_parameter("cup_detection_topic", "/azas/cup_detection")
+        self.declare_parameter("require_upright_detection_status", True)
         self.declare_parameter("require_base_link_pose", True)
         self.declare_parameter("fake_gripper_open_service", "/jarvis/rg2/open")
         self.declare_parameter("fake_gripper_close_service", "/jarvis/rg2/close")
@@ -61,10 +64,18 @@ class PickAndAlignActionServer(Node):
         self.declare_parameter("max_grasp_z_m", 0.40)
         self._callback_group = ReentrantCallbackGroup()
         self._latest_tumbler_pose = None
+        self._latest_detection_status = ""
         self._pose_sub = self.create_subscription(
             PoseStamped,
             str(self.get_parameter("tumbler_pose_topic").value),
             self._on_tumbler_pose,
+            10,
+            callback_group=self._callback_group,
+        )
+        self._detection_sub = self.create_subscription(
+            CupDetection,
+            str(self.get_parameter("cup_detection_topic").value),
+            self._on_cup_detection,
             10,
             callback_group=self._callback_group,
         )
@@ -82,6 +93,9 @@ class PickAndAlignActionServer(Node):
 
     def _on_tumbler_pose(self, msg: PoseStamped) -> None:
         self._latest_tumbler_pose = msg
+
+    def _on_cup_detection(self, msg: CupDetection) -> None:
+        self._latest_detection_status = msg.status
 
     def execute_callback(self, goal_handle):
         execution_mode = str(self.get_parameter("execution_mode").value).strip().lower()
@@ -122,10 +136,26 @@ class PickAndAlignActionServer(Node):
         )
         pose_msg = self._wait_for_tumbler_pose()
         if pose_msg is None:
+            orientation_error = self._cup_orientation_error_code()
+            if orientation_error:
+                return self._fail_result(
+                    goal_handle,
+                    orientation_error,
+                    f"Cup detection was not upright: status={self._latest_detection_status!r}; "
+                    "no real robot motion was commanded",
+                )
             return self._fail_result(
                 goal_handle,
                 "TUMBLER_POSE_TIMEOUT",
                 "Timed out waiting for tumbler pose; no real robot motion was commanded",
+            )
+        orientation_error = self._cup_orientation_error_code()
+        if orientation_error:
+            return self._fail_result(
+                goal_handle,
+                orientation_error,
+                f"Cup detection was not upright: status={self._latest_detection_status!r}; "
+                "no real robot motion was commanded",
             )
         if bool(self.get_parameter("require_base_link_pose").value) and pose_msg.header.frame_id != "base_link":
             return self._fail_result(
@@ -308,6 +338,8 @@ class PickAndAlignActionServer(Node):
         deadline = time.monotonic() + max(timeout_sec, 0.0)
         observed = self._latest_tumbler_pose
         while observed is None and time.monotonic() < deadline:
+            if self._cup_orientation_error_code():
+                break
             time.sleep(0.05)
             observed = self._latest_tumbler_pose
         return observed
@@ -374,6 +406,20 @@ class PickAndAlignActionServer(Node):
         if error_text.startswith("SIDE_GRASP_Z_OUT_OF_BOUNDS"):
             return "SIDE_GRASP_Z_OUT_OF_BOUNDS"
         return "INVALID_SIDE_GRASP_CONFIG"
+
+    def _cup_orientation_error_code(self) -> str:
+        if not bool(self.get_parameter("require_upright_detection_status").value):
+            return ""
+        status = self._latest_detection_status
+        if not status:
+            return ""
+        if status.startswith("detected:upright"):
+            return ""
+        if "unknown_orientation" in status or "orientation=unknown" in status:
+            return "CUP_ORIENTATION_UNKNOWN"
+        if status.startswith("rejected:") or status.startswith("detected:"):
+            return "CUP_ORIENTATION_NOT_UPRIGHT"
+        return ""
 
 
 def main(args=None):

@@ -67,9 +67,21 @@ Current side grasp is a no-motion approximation. The
 reference pose, `grasp_height_offset_m` is an offset from that reference, and
 `side_grasp_qx/qy/qz/qw` is only a planning-only TCP quaternion candidate. The
 quaternion is normalized before use and remains a placeholder until measured.
+Side grasp is currently limited to upright cups only. The YOLO detector uses a
+simple bbox aspect-ratio heuristic before publishing a graspable detection:
+`bbox_height / bbox_width >= 1.2` publishes `detected:upright`,
+`< 0.8` publishes `rejected:lying_or_unknown`, and the middle band publishes
+`rejected:unknown_orientation`. This heuristic is only a fail-closed guard; it
+does not prove the cup axis, mouth direction, table contact, or grasp surface.
+The pose bridge refuses to publish `/jarvis/tumbler_dispenser/tumbler_pose` for
+non-upright statuses, and `/azas/pick_and_align` reports
+`CUP_ORIENTATION_NOT_UPRIGHT` or `CUP_ORIENTATION_UNKNOWN` if a rejected
+detection is observed instead of an upright pose.
 Before any real side grasp, measured hand-eye/base-camera TF, cup center/radius,
 table height, TCP quaternion, gripper width/force, collision scene/clearance,
 operator clearance, and e-stop readiness must be verified with hardware gates.
+Lying, upside-down, or ambiguous cups must be handled in a later perception step
+with mask/PCA/point-cloud pose estimation before real grasp planning.
 
 Planning-only side grasp check:
 
@@ -115,6 +127,8 @@ The current detector selects one target cup-like object by:
 - class filter: `cup`, `tumbler`, or `bottle`
 - selection policy: largest bounding-box area
 - representative pixel: bbox center
+- orientation gate: upright-only bbox heuristic; non-upright or ambiguous
+  boxes are rejected before the pose bridge publishes a robot-frame pose
 - depth: median valid depth in a 7x7 center window
 - depth scale: `depth_scale_mode=auto` maps `16UC1`/`mono16` to `0.001`
   meter-per-mm scale and `32FC1` to `1.0` meter scale

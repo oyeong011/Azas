@@ -159,6 +159,18 @@ class YoloTumblerDetectorNode(Node):
             self._publish_invalid(msg, "no_tumbler_detection")
             return
 
+        orientation_state = self._classify_cup_orientation(detection.width, detection.height)
+        if orientation_state != "upright":
+            self.get_logger().warn(
+                "Rejecting tumbler detection for side grasp: "
+                f"orientation_state={orientation_state} "
+                f"bbox={detection.width}x{detection.height} "
+                f"aspect_ratio_h_over_w={self._bbox_aspect_ratio(detection.width, detection.height):.3f}; "
+                "bbox aspect ratio is a heuristic and does not prove cup pose"
+            )
+            self._publish_rejected_orientation(msg, detection, orientation_state)
+            return
+
         depth = self._median_depth(detection.center_u, detection.center_v)
         if depth is None:
             self._publish_invalid(msg, "invalid_depth_at_detection")
@@ -208,8 +220,10 @@ class YoloTumblerDetectorNode(Node):
         output.cup_mouth_center = self._pose_at(x, y, z + float(self.get_parameter("cup_height_m").value))
         output.confidence = float(detection.confidence)
         output.status = (
-            f"detected:{detection.class_name} "
+            f"detected:upright class={detection.class_name} "
             f"bbox={detection.width}x{detection.height} "
+            f"orientation={orientation_state} "
+            f"aspect_ratio_h_over_w={self._bbox_aspect_ratio(detection.width, detection.height):.3f} "
             f"center=({detection.center_u},{detection.center_v}) "
             f"area={detection.area} "
             f"depth_raw={depth.raw:.1f} depth_m={depth.meters:.3f} "
@@ -401,6 +415,48 @@ class YoloTumblerDetectorNode(Node):
     def _valid_intrinsics(intrinsics: CameraIntrinsics) -> bool:
         values = (intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy)
         return all(math.isfinite(value) for value in values) and intrinsics.fx > 0 and intrinsics.fy > 0
+
+    @staticmethod
+    def _bbox_aspect_ratio(width: int, height: int) -> float:
+        if width <= 0:
+            return math.inf
+        return float(height) / float(width)
+
+    @classmethod
+    def _classify_cup_orientation(cls, width: int, height: int) -> str:
+        ratio = cls._bbox_aspect_ratio(width, height)
+        if ratio >= 1.2:
+            return "upright"
+        if ratio < 0.8:
+            return "lying"
+        return "unknown"
+
+    def _publish_rejected_orientation(
+        self,
+        msg: Image,
+        detection: Detection2D,
+        orientation_state: str,
+    ) -> None:
+        output = CupDetection()
+        output.header.stamp = msg.header.stamp
+        output.header.frame_id = self._source_frame(self._latest_info, msg) if self._latest_info else msg.header.frame_id
+        output.grasp_pose = Pose()
+        output.cup_mouth_center = Pose()
+        output.confidence = float(detection.confidence)
+        reason = (
+            "lying_or_unknown"
+            if orientation_state == "lying"
+            else "unknown_orientation"
+        )
+        output.status = (
+            f"rejected:{reason} class={detection.class_name} "
+            f"orientation={orientation_state} "
+            f"bbox={detection.width}x{detection.height} "
+            f"aspect_ratio_h_over_w={self._bbox_aspect_ratio(detection.width, detection.height):.3f} "
+            "heuristic=bbox_height_over_width"
+        )
+        output.source = str(self.get_parameter("source").value)
+        self._pub.publish(output)
 
     def _publish_invalid(self, msg: Image, status: str) -> None:
         output = CupDetection()

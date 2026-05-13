@@ -140,7 +140,7 @@ ros2 topic pub --once "${SMOKE_CUP_DETECTION_TOPIC}" azas_interfaces/msg/CupDete
     orientation: {w: 1.0}
   },
   confidence: 0.95,
-  status: 'detected:fake_hardware_tumbler',
+  status: 'detected:upright class=fake_hardware_tumbler',
   source: 'smoke_fake_hardware_path'
 }" >/tmp/azas_smoke_fake_hardware_pub.log
 

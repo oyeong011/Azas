@@ -1,4 +1,8 @@
+import json
+
 import rclpy
+from azas_motion.alignment import SideGraspConfig, compute_side_grasp_plan
+from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
 
@@ -33,10 +37,23 @@ class AlignmentExecutorNode(Node):
         self.declare_parameter("grasp_pose_topic", "")
         self.declare_parameter("lift_pose_topic", "")
         self.declare_parameter("planning_timeout_sec", 5.0)
+        self.declare_parameter("use_fake_side_grasp_plan", True)
+        self.declare_parameter("cup_reference_x", 0.32)
+        self.declare_parameter("cup_reference_y", -0.22)
+        self.declare_parameter("cup_reference_z", 0.05)
+        self.declare_parameter("side_grasp_qx", 0.0)
+        self.declare_parameter("side_grasp_qy", 0.0)
+        self.declare_parameter("side_grasp_qz", 0.0)
+        self.declare_parameter("side_grasp_qw", 1.0)
+        self.declare_parameter("side_approach_axis", "-x")
         self._approach_pose = None
         self._grasp_pose = None
         self._lift_pose = None
+        self._moveit_py = None
+        self._planning_component = None
+        self._planning_attempted = False
         self._configure_pose_subscriptions()
+        self._configure_fake_side_grasp_plan()
         self.get_logger().warn(
             "AlignmentExecutorNode is planning-only by default. It does not command "
             "Doosan motion, MoveIt execution, or RG2 hardware. Required sequence: "
@@ -60,6 +77,49 @@ class AlignmentExecutorNode(Node):
             self.create_subscription(PoseStamped, topic, callback, 10)
             self.get_logger().info(f"Subscribed to {label} pose topic for planning-only: {topic}")
 
+    def _configure_fake_side_grasp_plan(self) -> None:
+        if not bool(self.get_parameter("use_fake_side_grasp_plan").value):
+            return
+        reference_pose = Pose()
+        reference_pose.position.x = float(self.get_parameter("cup_reference_x").value)
+        reference_pose.position.y = float(self.get_parameter("cup_reference_y").value)
+        reference_pose.position.z = float(self.get_parameter("cup_reference_z").value)
+        reference_pose.orientation.w = 1.0
+        try:
+            plan = compute_side_grasp_plan(
+                reference_pose,
+                SideGraspConfig(
+                    orientation_source="parameter",
+                    side_grasp_qx=float(self.get_parameter("side_grasp_qx").value),
+                    side_grasp_qy=float(self.get_parameter("side_grasp_qy").value),
+                    side_grasp_qz=float(self.get_parameter("side_grasp_qz").value),
+                    side_grasp_qw=float(self.get_parameter("side_grasp_qw").value),
+                    side_approach_axis=str(self.get_parameter("side_approach_axis").value),
+                ),
+            )
+        except ValueError as exc:
+            self.get_logger().error(
+                self._planning_log(
+                    "fake_side_grasp_plan",
+                    "failed",
+                    error=str(exc),
+                    real_readiness=False,
+                )
+            )
+            return
+        base_frame = str(self.get_parameter("base_frame").value).strip() or "base_link"
+        self._approach_pose = self._pose_stamped(plan.approach_pose, base_frame)
+        self._grasp_pose = self._pose_stamped(plan.grasp_pose, base_frame)
+        self._lift_pose = self._pose_stamped(plan.lift_pose, base_frame)
+        self.get_logger().warn(
+            self._planning_log(
+                "fake_side_grasp_plan",
+                "ready",
+                warning=plan.warning,
+                real_readiness=False,
+            )
+        )
+
     def _on_approach_pose(self, msg: PoseStamped) -> None:
         self._approach_pose = msg
 
@@ -70,13 +130,24 @@ class AlignmentExecutorNode(Node):
         self._lift_pose = msg
 
     def _report_planning_only_readiness(self) -> None:
+        if self._planning_attempted:
+            return
         if not bool(self.get_parameter("enable_planning_only").value):
+            self._planning_attempted = True
             self.get_logger().warn("Planning-only checker disabled; no motion is commanded")
             return
         if bool(self.get_parameter("allow_execute").value):
+            self._planning_attempted = True
             self.get_logger().error(
-                "allow_execute=true is refused in this Azas planning-only boundary; "
-                "no MoveIt execution or Doosan command is available here"
+                self._planning_log(
+                    "planning_only_gate",
+                    "failed",
+                    error=(
+                        "allow_execute=true is refused; no MoveIt execution or Doosan "
+                        "command is available here"
+                    ),
+                    real_readiness=False,
+                )
             )
             return
 
@@ -84,23 +155,37 @@ class AlignmentExecutorNode(Node):
         ee_link = str(self.get_parameter("ee_link").value).strip()
         base_frame = str(self.get_parameter("base_frame").value).strip()
         if not planning_group or not ee_link:
+            self._planning_attempted = True
             self.get_logger().error(
-                "Planning-only fail-closed: planning_group and ee_link must be set. "
-                f"Current planning_group={planning_group!r}, ee_link={ee_link!r}. "
-                "Source /opt/ros/humble/setup.bash and install/setup.bash, then pass "
-                "verified MoveIt config values."
+                self._planning_log(
+                    "planning_only_gate",
+                    "failed",
+                    error="planning_group and ee_link must be set before planning",
+                    planning_group=planning_group,
+                    ee_link=ee_link,
+                    real_readiness=False,
+                )
             )
             return
         if not base_frame:
+            self._planning_attempted = True
             self.get_logger().error("Planning-only fail-closed: base_frame must be set")
             return
 
-        moveit_ok, moveit_message = self._check_moveitpy_available()
+        moveit_ok, moveit_message = self._ensure_moveitpy(planning_group)
         if not moveit_ok:
+            self._planning_attempted = True
             self.get_logger().error(
-                "Planning-only fail-closed: MoveItPy import failed. "
-                f"{moveit_message}. Try: source /opt/ros/humble/setup.bash; "
-                "source /home/ssu/Azas/install/setup.bash"
+                self._planning_log(
+                    "moveitpy_init",
+                    "failed",
+                    error=moveit_message,
+                    hint=(
+                        "source /opt/ros/humble/setup.bash; "
+                        "source /home/ssu/Azas/install/setup.bash"
+                    ),
+                    real_readiness=False,
+                )
             )
             return
 
@@ -111,19 +196,103 @@ class AlignmentExecutorNode(Node):
             )
             return
 
+        self._planning_attempted = True
+        results = [
+            self._plan_pose("approach", self._approach_pose, planning_group, ee_link),
+            self._plan_pose("grasp", self._grasp_pose, planning_group, ee_link),
+            self._plan_pose("lift", self._lift_pose, planning_group, ee_link),
+        ]
         self.get_logger().warn(
-            "MoveItPy import is available, but planning request construction is not connected "
-            "in this safety batch. approach/grasp/lift poses are held for planning-only "
-            "integration; no execute call exists."
+            self._planning_log(
+                "side_grasp_planning_only_summary",
+                "complete",
+                results=results,
+                real_readiness=False,
+            )
         )
 
-    @staticmethod
-    def _check_moveitpy_available() -> tuple[bool, str]:
+    def _ensure_moveitpy(self, planning_group: str) -> tuple[bool, str]:
         try:
-            from moveit.planning import MoveItPy  # noqa: F401
+            from moveit.planning import MoveItPy
         except Exception as exc:  # pragma: no cover - environment dependent
             return False, str(exc)
-        return True, "MoveItPy import available"
+        if self._moveit_py is None:
+            try:
+                self._moveit_py = MoveItPy(
+                    node_name="azas_side_grasp_planning_only",
+                    provide_planning_service=False,
+                )
+            except Exception as exc:  # pragma: no cover - environment dependent
+                return False, f"MoveItPy construction failed: {exc}"
+        if self._planning_component is None:
+            try:
+                self._planning_component = self._moveit_py.get_planning_component(planning_group)
+            except Exception as exc:  # pragma: no cover - environment dependent
+                return False, f"PlanningComponent construction failed: {exc}"
+        return True, "MoveItPy planning component available"
+
+    def _plan_pose(
+        self,
+        label: str,
+        pose_msg: PoseStamped,
+        planning_group: str,
+        ee_link: str,
+    ) -> dict:
+        try:
+            from moveit.planning import PlanRequestParameters
+
+            request_parameters = PlanRequestParameters(self._moveit_py)
+            request_parameters.planning_time = float(
+                self.get_parameter("planning_timeout_sec").value
+            )
+            self._planning_component.set_start_state_to_current_state()
+            self._planning_component.set_goal_state(
+                pose_stamped_msg=pose_msg,
+                pose_link=ee_link,
+            )
+            solution = self._planning_component.plan(request_parameters)
+            success = bool(solution)
+            error_code = getattr(getattr(solution, "error_code", None), "val", None)
+            result = {
+                "label": label,
+                "status": "planned" if success else "failed",
+                "planning_group": planning_group,
+                "ee_link": ee_link,
+                "frame_id": pose_msg.header.frame_id,
+                "error_code": error_code,
+                "real_readiness": False,
+            }
+            log_fields = dict(result)
+            log_status = str(log_fields.pop("status"))
+            self.get_logger().warn(self._planning_log(f"{label}_pose", log_status, **log_fields))
+            return result
+        except Exception as exc:  # pragma: no cover - environment dependent
+            result = {
+                "label": label,
+                "status": "failed",
+                "planning_group": planning_group,
+                "ee_link": ee_link,
+                "frame_id": pose_msg.header.frame_id,
+                "error": str(exc),
+                "real_readiness": False,
+            }
+            log_fields = dict(result)
+            log_fields.pop("status")
+            self.get_logger().error(self._planning_log(f"{label}_pose", "failed", **log_fields))
+            return result
+
+    @staticmethod
+    def _pose_stamped(pose: Pose, frame_id: str) -> PoseStamped:
+        msg = PoseStamped()
+        msg.header.frame_id = frame_id
+        msg.pose = pose
+        return msg
+
+    @staticmethod
+    def _planning_log(event: str, status: str, **fields) -> str:
+        payload = {"event": event, "status": status, "planning_only": True}
+        payload.update(fields)
+        return json.dumps(payload, sort_keys=True)
 
 
 def main(args=None):

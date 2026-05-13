@@ -61,6 +61,43 @@ System package candidates are listed in `system_apt_packages.txt`. Review the ta
 7. **AnyGrasp ROS 2**: experimental only; review SDK license registration, ROS distro mismatch, CUDA/PyTorch container requirements, service contracts, and frame conventions before connecting to `PickAndAlign`.
 8. **DSR_DeepTree demo**: review Task 1 action sequencing, Task 2 YOLO/hand-eye conversion, Task 3 STT command mapping, and Task 4 Isaac Sim assets. Port patterns only; do not vendor the full tree.
 
+## External grasp detector experiment log
+
+Status on 2026-05-13: Azas has not vendored or installed grasp detector source
+trees in this repository. The first integration step is offline frame export and
+JSON adapter validation:
+
+```bash
+python3 /home/ssu/Azas/tools/export_grasp_frame.py --output-dir /tmp/azas_grasp_frame
+python3 /home/ssu/Azas/tools/check_grasp_adapter_contract.py --frame-dir /tmp/azas_grasp_frame
+```
+
+Preferred external install order for RTX 5080 16GB:
+
+1. `graspnet/graspnet-baseline` in a separate conda environment, using the
+   pretrained RealSense checkpoint if downloadable and license-compatible.
+2. `NVlabs/contact_graspnet` if GraspNet baseline candidates are poor, accepting
+   the older Python/TensorFlow/CUDA environment risk.
+3. `graspnet/anygrasp_sdk` only after license registration is approved.
+4. `atenpas/gpd` / `atenpas/gpd_ros` as a CPU/PCL fallback. `gpd_ros` is ROS1
+   catkin and must not be treated as a direct ROS2 Humble package.
+
+Experiment outputs should stay under `/tmp` or another external review
+workspace. Azas should only receive adapter glue, schema docs, and small logs.
+
+Local environment observation on 2026-05-13:
+
+- `nvidia-smi` reports NVIDIA GeForce RTX 5080 with 16 GB VRAM and driver CUDA
+  capability 13.0.
+- `conda --version` is not available on this machine, so a separate conda env
+  for `graspnet/graspnet-baseline` has not been created yet.
+- System Python is 3.10.12. Installed torch reports `2.11.0+cu130`, but
+  `torch.cuda.is_available()` is `False`; do not treat this Python environment
+  as ready for GraspNet inference.
+- Next install validation should create an external env outside Azas, install
+  `graspnet/graspnet-baseline`, compile its `pointnet2` and `knn` extensions,
+  and test the RealSense pretrained checkpoint against `/tmp/azas_grasp_frame`.
+
 ## Safety gate
 
 Any dependency that can affect hardware motion must have an Azas integration note documenting:
