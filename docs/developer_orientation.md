@@ -116,6 +116,27 @@ STT
 - 실제 로봇을 움직일 수 있는 launch는 직접 실행용으로 노출하지 말고 `tools/run` gate script 뒤에 둡니다.
 - 삭제 전에는 `rg <launch-name>`로 참조를 확인하고, COMMANDS/README/docs 링크를 같이 수정합니다.
 
+### 2026-05-13 실행성 감사 결과
+
+기준:
+
+- Python 파일: `python3 -m compileall -q src tools /home/ssu/ros2_ws/src/Azas`
+- Shell 파일: `bash -n tools/**/*.sh`
+- ROS launch: `ros2 launch <package> <launch>.launch.py --show-args`
+- Shell 실행 비트: `find tools -type f -name '*.sh' ! -perm -111`
+
+결과:
+
+| 항목 | 결과 |
+| --- | --- |
+| Python 문법 | 통과 |
+| Shell 문법 | 통과 |
+| Azas bringup launch resolve | 통과 |
+| Jarvis launch resolve | 통과 |
+| 실행 비트 누락 | `tools/smoke/smoke_voice_cocktail_no_hardware.sh`만 발견, 실행 가능하도록 수정 |
+
+따라서 현재 확인된 문제는 “아예 실행이 안 되는 파일”보다는 “중복 launch, 오래된 MVP launch, 실험 파일의 이름/위치 불명확성”입니다.
+
 ## 대표 명령만 먼저 사용
 
 ### 전체 no-motion 준비도
