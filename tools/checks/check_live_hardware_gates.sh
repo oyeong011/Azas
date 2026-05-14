@@ -9,9 +9,9 @@ set -euo pipefail
 #   2. Put the target tumbler/lid in the camera view.
 #   3. Run this script and inspect PASS/WARN/FAIL.
 
-COLOR_TOPIC="${COLOR_TOPIC:-/camera/color/image_raw}"
-DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/aligned_depth_to_color/image_raw}"
-CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/color/camera_info}"
+COLOR_TOPIC="${COLOR_TOPIC:-/camera/camera/color/image_raw}"
+DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/camera/aligned_depth_to_color/image_raw}"
+CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/camera/color/camera_info}"
 CUP_DETECTION_TOPIC="${CUP_DETECTION_TOPIC:-/azas/cup_detection}"
 TUMBLER_POSE_TOPIC="${TUMBLER_POSE_TOPIC:-/jarvis/tumbler_dispenser/tumbler_pose}"
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"

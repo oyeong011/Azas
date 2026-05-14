@@ -8,9 +8,9 @@ MOTION_HOLD_FILE="${MOTION_HOLD_FILE:-/tmp/azas_motion_hold}"
 GATE_STAMP="${GATE_STAMP:-/tmp/azas_live_hardware_gates_passed}"
 LIVE_GATE_MAX_AGE_SEC="${LIVE_GATE_MAX_AGE_SEC:-600}"
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"
-COLOR_TOPIC="${COLOR_TOPIC:-/camera/color/image_raw}"
-DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/aligned_depth_to_color/image_raw}"
-CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/color/camera_info}"
+COLOR_TOPIC="${COLOR_TOPIC:-/camera/camera/color/image_raw}"
+DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/camera/aligned_depth_to_color/image_raw}"
+CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/camera/color/camera_info}"
 ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG:---no-daemon}"
 
 blockers=0

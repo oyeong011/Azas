@@ -8,9 +8,9 @@ SELECTED_DISPENSER_ID="${SELECTED_DISPENSER_ID:-2}"
 RG2_IP="${RG2_IP:-192.168.1.1}"
 ENABLE_REALSENSE="${ENABLE_REALSENSE:-true}"
 ENABLE_RG2="${ENABLE_RG2:-true}"
-COLOR_TOPIC="${COLOR_TOPIC:-/camera/color/image_raw}"
-DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/aligned_depth_to_color/image_raw}"
-CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/color/camera_info}"
+COLOR_TOPIC="${COLOR_TOPIC:-/camera/camera/color/image_raw}"
+DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/camera/aligned_depth_to_color/image_raw}"
+CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/camera/color/camera_info}"
 TUMBLER_POSE_TARGET_FRAME="${TUMBLER_POSE_TARGET_FRAME:-base_link}"
 SOURCE_FRAME="${SOURCE_FRAME:-camera_color_optical_frame}"
 REQUIRE_TUMBLER_POSE_TF="${REQUIRE_TUMBLER_POSE_TF:-true}"
@@ -19,6 +19,8 @@ SELECTION_POLICY="${SELECTION_POLICY:-largest_bbox}"
 DEPTH_WINDOW_SIZE="${DEPTH_WINDOW_SIZE:-7}"
 MIN_DEPTH_M="${MIN_DEPTH_M:-0.15}"
 MAX_DEPTH_M="${MAX_DEPTH_M:-2.0}"
+PLACE_MOUTH_UNDER_OUTLET="${PLACE_MOUTH_UNDER_OUTLET:-true}"
+OUTLET_MOUTH_CLEARANCE="${OUTLET_MOUTH_CLEARANCE:-0.0}"
 PUBLISH_CAMERA_BASE_TF="${PUBLISH_CAMERA_BASE_TF:-false}"
 CAMERA_BASE_TF_PARENT_FRAME="${CAMERA_BASE_TF_PARENT_FRAME:-base_link}"
 CAMERA_BASE_TF_CHILD_FRAME="${CAMERA_BASE_TF_CHILD_FRAME:-camera_color_optical_frame}"
@@ -38,6 +40,7 @@ set -u
 echo "[Azas] Starting SAFE dry-run. Real robot motion is disabled."
 echo "[Azas] selected_dispenser_id=${SELECTED_DISPENSER_ID} rg2_ip=${RG2_IP}"
 echo "[Azas] camera topics: ${COLOR_TOPIC}, ${DEPTH_TOPIC}, ${CAMERA_INFO_TOPIC}"
+echo "[Azas] outlet alignment: place_mouth_under_outlet=${PLACE_MOUTH_UNDER_OUTLET} clearance=${OUTLET_MOUTH_CLEARANCE}m"
 if [[ "${PUBLISH_CAMERA_BASE_TF}" == "true" ]]; then
   echo "[Azas] publishing explicit camera->base static TF for no-motion validation:"
   echo "[Azas]   ${CAMERA_BASE_TF_PARENT_FRAME} -> ${CAMERA_BASE_TF_CHILD_FRAME}"
@@ -61,6 +64,8 @@ exec ros2 launch azas_bringup robot_connection_control.launch.py \
   depth_window_size:="${DEPTH_WINDOW_SIZE}" \
   min_depth_m:="${MIN_DEPTH_M}" \
   max_depth_m:="${MAX_DEPTH_M}" \
+  place_mouth_under_outlet:="${PLACE_MOUTH_UNDER_OUTLET}" \
+  outlet_mouth_clearance:="${OUTLET_MOUTH_CLEARANCE}" \
   publish_camera_base_tf:="${PUBLISH_CAMERA_BASE_TF}" \
   camera_base_tf_parent_frame:="${CAMERA_BASE_TF_PARENT_FRAME}" \
   camera_base_tf_child_frame:="${CAMERA_BASE_TF_CHILD_FRAME}" \

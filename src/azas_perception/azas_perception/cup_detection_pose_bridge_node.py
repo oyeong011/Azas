@@ -48,6 +48,9 @@ class CupDetectionPoseBridgeNode(Node):
         )
 
     def _on_detection(self, msg: CupDetection) -> None:
+        # Only upright detections may be turned into robot-frame poses. A
+        # rejected/ambiguous cup still publishes diagnostic status upstream, but
+        # must not leak into the motion-facing pose topic.
         min_confidence = float(self.get_parameter("min_confidence").value)
         required = str(self.get_parameter("require_status_prefix").value)
         # CupDetection.confidence is float32 on the wire; allow a tiny epsilon so
@@ -94,6 +97,8 @@ class CupDetectionPoseBridgeNode(Node):
         )
 
     def _to_target_frame(self, pose_msg: PoseStamped):
+        # This bridge converts camera-frame detections into base_link. If TF is
+        # absent or stale, fail closed instead of publishing a guessed pose.
         target_frame = str(self.get_parameter("target_frame").value).strip()
         require_tf = bool(self.get_parameter("require_tf").value)
         source_frame = pose_msg.header.frame_id

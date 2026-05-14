@@ -56,9 +56,9 @@ class YoloTumblerDetectorNode(Node):
     def __init__(self):
         super().__init__("yolo_tumbler_detector_node")
         self.declare_parameter("model_path", "/home/ssu/Downloads/best.pt")
-        self.declare_parameter("color_topic", "/camera/color/image_raw")
-        self.declare_parameter("depth_topic", "/camera/aligned_depth_to_color/image_raw")
-        self.declare_parameter("camera_info_topic", "/camera/color/camera_info")
+        self.declare_parameter("color_topic", "/camera/camera/color/image_raw")
+        self.declare_parameter("depth_topic", "/camera/camera/aligned_depth_to_color/image_raw")
+        self.declare_parameter("camera_info_topic", "/camera/camera/color/camera_info")
         self.declare_parameter("confidence_threshold", 0.35)
         self.declare_parameter("target_class", "")
         self.declare_parameter("target_class_names", "cup,tumbler,bottle")

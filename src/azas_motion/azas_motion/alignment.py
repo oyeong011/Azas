@@ -119,7 +119,12 @@ def compute_side_grasp_plan(
     cup_reference_pose: Pose,
     config: SideGraspConfig,
 ) -> SideGraspPlan:
-    """Compute side-grasp poses for no-motion diagnostics only."""
+    """Compute side-grasp poses for no-motion diagnostics only.
+
+    The returned poses are geometric candidates, not robot-ready trajectories.
+    They become executable only after measured TCP/cup offsets, collision scene,
+    workspace bounds, gripper width/force, and MoveIt feasibility are verified.
+    """
     _validate_side_grasp_config(config)
 
     orientation, orientation_warning = _side_grasp_orientation(cup_reference_pose, config)

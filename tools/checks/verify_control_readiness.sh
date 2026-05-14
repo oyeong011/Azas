@@ -35,6 +35,27 @@ run_step() {
   fi
 }
 
+python_syntax_check() {
+  python3 - "$@" <<'PY'
+import pathlib
+import sys
+
+failed = False
+for raw_path in sys.argv[1:]:
+    path = pathlib.Path(raw_path)
+    try:
+        source = path.read_text(encoding="utf-8")
+        compile(source, str(path), "exec")
+    except Exception as exc:
+        failed = True
+        print(f"[FAIL] {path}: {exc}")
+    else:
+        print(f"[OK] {path}")
+
+raise SystemExit(1 if failed else 0)
+PY
+}
+
 {
   echo "# Azas Control Readiness Report"
   date -Is
@@ -59,10 +80,13 @@ run_step "Script syntax" bash -lc '
   "${RUN_DIR}/run_connected_robot_control.sh" \
   "${RUN_DIR}/run_robot_dryrun.sh" \
   "${RUN_DIR}/run_robot_real.sh" \
+  "${RUN_DIR}/run_connected_cup_pick_real.sh" \
+  "${RUN_DIR}/run_cup_to_dispenser_press_real.sh" \
   "${RUN_DIR}/run_rule_based_dispenser_then_shake_real.sh" \
   "${RUN_DIR}/run_rule_based_dispenser_then_shake_sim.sh" \
   "${RUN_DIR}/run_rule_based_shake_real.sh" \
   "${SMOKE_DIR}/smoke_fake_hardware_path.sh" \
+  "${SMOKE_DIR}/smoke_cup_to_dispenser_press_path.sh" \
   "${SMOKE_DIR}/smoke_tumbler_shake_sequence.sh" \
   "${CHECKS_DIR}/check_depth_projection_sample.sh" \
   "${CHECKS_DIR}/check_detection_stability.sh" \
@@ -72,13 +96,15 @@ run_step "Script syntax" bash -lc '
   "${SMOKE_DIR}/smoke_real_motion_entrypoint_gates.sh" \
   "${SMOKE_DIR}/smoke_real_motion_config_gate.sh"
 
-run_step "Python syntax" python3 -m py_compile \
+run_step "Python syntax" python_syntax_check \
   "${SMOKE_DIR}/fake_hardware_services.py" \
   "/home/ssu/ros2_ws/src/Azas/jarvis/m0609_shake_joint_state_node.py" \
   "/home/ssu/ros2_ws/src/Azas/jarvis/tumbler_shake_sequence_node.py" \
+  "/home/ssu/ros2_ws/src/Azas/jarvis/dispense_lid_sequence_node.py" \
   "/home/ssu/ros2_ws/src/Azas/jarvis/shake_visualizer_node.py" \
   "${CHECKS_DIR}/check_static_cup_lid_dataset.py" \
   "${CHECKS_DIR}/check_fixed_dispenser_geometry.py" \
+  "${CHECKS_DIR}/check_measured_dispenser_geometry.py" \
   "${CHECKS_DIR}/check_cocktail_workflow_plan.py" \
   "${CHECKS_DIR}/check_depth_projection_sample.py" \
   "${CHECKS_DIR}/check_detection_stability.py" \
@@ -94,9 +120,11 @@ run_step "Fixed dispenser geometry gate" "${CHECKS_DIR}/check_fixed_dispenser_ge
 
 run_step "Non-hardware control smoke" "${SMOKE_DIR}/smoke_control_path.sh"
 
-run_step "Fake hardware-armed smoke" "${SMOKE_DIR}/smoke_fake_hardware_path.sh"
+run_step "Fake hardware-armed smoke" env SERVICE_PREFIX=azas_verify_floor "${SMOKE_DIR}/smoke_fake_hardware_path.sh"
 
-run_step "Rule-based high-shake fake hardware smoke" "${SMOKE_DIR}/smoke_tumbler_shake_sequence.sh"
+run_step "Dispenser press fake hardware smoke" env SERVICE_PREFIX=azas_verify_press "${SMOKE_DIR}/smoke_cup_to_dispenser_press_path.sh"
+
+run_step "Rule-based high-shake fake hardware smoke" env SERVICE_PREFIX=azas_verify_shake "${SMOKE_DIR}/smoke_tumbler_shake_sequence.sh"
 
 run_step "Cocktail dry-run sequence smoke" "${SMOKE_DIR}/smoke_cocktail_dryrun_sequence.sh"
 

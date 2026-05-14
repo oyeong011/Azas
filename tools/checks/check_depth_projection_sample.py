@@ -68,8 +68,8 @@ class DepthProjectionSampler(Node):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--depth-topic", default="/camera/aligned_depth_to_color/image_raw")
-    parser.add_argument("--camera-info-topic", default="/camera/color/camera_info")
+    parser.add_argument("--depth-topic", default="/camera/camera/aligned_depth_to_color/image_raw")
+    parser.add_argument("--camera-info-topic", default="/camera/camera/color/camera_info")
     parser.add_argument("--timeout", type=float, default=10.0)
     parser.add_argument("--patch-radius", type=int, default=3)
     parser.add_argument("--u", type=int, default=None)

@@ -280,9 +280,9 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", "--output", dest="output_dir", default="/tmp/azas_grasp_frame")
-    parser.add_argument("--rgb-topic", default="/camera/color/image_raw")
-    parser.add_argument("--depth-topic", default="/camera/aligned_depth_to_color/image_raw")
-    parser.add_argument("--camera-info-topic", default="/camera/color/camera_info")
+    parser.add_argument("--rgb-topic", default="/camera/camera/color/image_raw")
+    parser.add_argument("--depth-topic", default="/camera/camera/aligned_depth_to_color/image_raw")
+    parser.add_argument("--camera-info-topic", default="/camera/camera/color/camera_info")
     parser.add_argument("--detection-topic", default="/azas/cup_detection")
     parser.add_argument("--mask-topic", default="")
     parser.add_argument("--timeout-sec", type=float, default=10.0)

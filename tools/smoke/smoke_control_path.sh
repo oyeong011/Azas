@@ -15,10 +15,10 @@ SMOKE_TUMBLER_POSE_TOPIC="${SMOKE_TUMBLER_POSE_TOPIC:-/azas/smoke/tumbler_pose}"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-/tmp/azas_ros_logs}"
 
 case "${SELECTED_DISPENSER_ID}" in
-  1) EXPECTED_PLACE_Y="0.035" ;;
-  2) EXPECTED_PLACE_Y="-0.065" ;;
-  3) EXPECTED_PLACE_Y="-0.165" ;;
-  4) EXPECTED_PLACE_Y="-0.265" ;;
+  1) EXPECTED_PLACE_Y="0.180" ;;
+  2) EXPECTED_PLACE_Y="0.080" ;;
+  3) EXPECTED_PLACE_Y="-0.020" ;;
+  4) EXPECTED_PLACE_Y="-0.120" ;;
   *)
     echo "[FAIL] unsupported SELECTED_DISPENSER_ID=${SELECTED_DISPENSER_ID}"
     exit 1
@@ -109,8 +109,8 @@ for _ in {1..30}; do
     assert_log_contains "plan side_pre_grasp: x=0\\.238 y=-0\\.163 z=0\\.135 gripper=preopen width_m=0\\.095 force_n=8\\.0" "gripper preopens for tapered cup before side approach"
     assert_log_contains "plan side_grasp_tumbler: x=0\\.320 y=-0\\.220 z=0\\.135 gripper=close width_m=0\\.064 force_n=12\\.0" "grasp closes to tapered cup target width"
     assert_log_contains "plan lift_tumbler: x=0\\.320 y=-0\\.220 z=0\\.175 gripper=none" "side-grasped cup is lifted only slightly"
-    assert_log_contains "plan pre_floor_place: x=0\\.500 y=${EXPECTED_PLACE_Y} z=0\\.145 gripper=none" "cup approaches fixed place point at slight clearance"
-    assert_log_contains "plan floor_place: x=0\\.500 y=${EXPECTED_PLACE_Y} z=0\\.085 gripper=open" "cup moves to fixed selected-dispenser position"
+    assert_log_contains "plan pre_floor_place: x=0\\.430 y=${EXPECTED_PLACE_Y} z=0\\.145 gripper=none" "cup approaches fixed place point at slight clearance"
+    assert_log_contains "plan floor_place: x=0\\.430 y=${EXPECTED_PLACE_Y} z=0\\.085 gripper=open" "cup moves to fixed selected-dispenser position"
     echo "[OK] smoke control path reached DONE"
     exit 0
   fi

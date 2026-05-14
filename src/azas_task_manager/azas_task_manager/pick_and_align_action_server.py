@@ -98,6 +98,10 @@ class PickAndAlignActionServer(Node):
         self._latest_detection_status = msg.status
 
     def execute_callback(self, goal_handle):
+        # The action message has an execute_motion field for the future real
+        # path, but this server intentionally ignores it today. Real movement is
+        # blocked until measured calibration, MoveIt execution, RG2 behavior,
+        # collision/workspace bounds, and operator gates are all implemented.
         execution_mode = str(self.get_parameter("execution_mode").value).strip().lower()
         if execution_mode == "skeleton":
             return self._execute_skeleton(goal_handle)
@@ -127,6 +131,9 @@ class PickAndAlignActionServer(Node):
         return result
 
     def _execute_no_motion(self, goal_handle):
+        # This path validates perception/pose plumbing and produces grasp
+        # candidate poses for diagnostics. It must remain side-effect free:
+        # no Doosan trajectory execution and no real RG2 commands.
         feedback = PickAndAlign.Feedback()
         observe_detail = self._observe_pose_feedback_detail()
         if observe_detail.startswith("invalid"):

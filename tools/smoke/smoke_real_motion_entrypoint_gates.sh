@@ -22,6 +22,10 @@ expect_fail "missing strict stamp" env \
   LIVE_GATE_STAMP="${STAMP}" \
   /home/ssu/Azas/tools/run/run_robot_real.sh
 
+expect_fail "cup-to-dispenser press missing strict stamp" env \
+  LIVE_GATE_STAMP="${STAMP}" \
+  /home/ssu/Azas/tools/run/run_cup_to_dispenser_press_real.sh
+
 expect_fail "shake missing strict stamp" env \
   LIVE_GATE_STAMP="${STAMP}" \
   /home/ssu/Azas/tools/run/run_rule_based_shake_real.sh
@@ -33,6 +37,10 @@ expect_fail "shake missing strict stamp" env \
 expect_fail "non-strict stamp" env \
   LIVE_GATE_STAMP="${STAMP}" \
   /home/ssu/Azas/tools/run/run_robot_real.sh
+
+expect_fail "cup-to-dispenser press non-strict stamp" env \
+  LIVE_GATE_STAMP="${STAMP}" \
+  /home/ssu/Azas/tools/run/run_cup_to_dispenser_press_real.sh
 
 expect_fail "shake non-strict stamp" env \
   LIVE_GATE_STAMP="${STAMP}" \
@@ -46,6 +54,11 @@ expect_fail "strict stamp but placeholder config" env \
   LIVE_GATE_STAMP="${STAMP}" \
   LIVE_GATE_MAX_AGE_SEC=600 \
   /home/ssu/Azas/tools/run/run_robot_real.sh
+
+expect_fail "cup-to-dispenser press strict stamp but placeholder config" env \
+  LIVE_GATE_STAMP="${STAMP}" \
+  LIVE_GATE_MAX_AGE_SEC=600 \
+  /home/ssu/Azas/tools/run/run_cup_to_dispenser_press_real.sh
 
 expect_fail "shake strict stamp but placeholder config" env \
   LIVE_GATE_STAMP="${STAMP}" \

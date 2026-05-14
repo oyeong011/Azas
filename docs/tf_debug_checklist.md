@@ -108,7 +108,7 @@ Expected detector logs:
 Confirm the live aligned-depth encoding before trusting projected camera points:
 
 ```bash
-ros2 topic echo --once /camera/aligned_depth_to_color/image_raw | grep encoding
+ros2 topic echo --once /camera/camera/aligned_depth_to_color/image_raw | grep encoding
 ```
 
 The bridge may use latest TF when a detection stamp is zero, and can optionally

@@ -16,6 +16,7 @@ setup(
     maintainer_email="team@example.com",
     description="MoveItPy motion and dispenser alignment skeleton for Azas.",
     license="MIT",
+    tests_require=["pytest"],
     entry_points={
         "console_scripts": [
             "alignment_executor_node = azas_motion.alignment_executor_node:main",

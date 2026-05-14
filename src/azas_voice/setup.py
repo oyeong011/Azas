@@ -19,6 +19,7 @@ setup(
     maintainer_email="team@example.com",
     description="STT and symbolic cocktail recipe mapping for Azas.",
     license="MIT",
+    tests_require=["pytest"],
     entry_points={
         "console_scripts": [
             "stt_node = azas_voice.stt_node:main",

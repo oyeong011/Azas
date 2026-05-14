@@ -14,9 +14,9 @@ source /opt/ros/humble/setup.bash
 source /home/ssu/Azas/install/setup.bash
 python3 /home/ssu/Azas/tools/perception/export_grasp_frame.py \
   --output-dir /tmp/azas_grasp_frame \
-  --rgb-topic /camera/color/image_raw \
-  --depth-topic /camera/aligned_depth_to_color/image_raw \
-  --camera-info-topic /camera/color/camera_info \
+  --rgb-topic /camera/camera/color/image_raw \
+  --depth-topic /camera/camera/aligned_depth_to_color/image_raw \
+  --camera-info-topic /camera/camera/color/camera_info \
   --detection-topic /azas/cup_detection
 ```
 

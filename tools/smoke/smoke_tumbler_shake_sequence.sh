@@ -22,12 +22,24 @@ source /home/ssu/ros2_ws/install/setup.bash
 set -u
 
 assert_no_preexisting_motion_target() {
-  ros2 service list --no-daemon >/tmp/azas_smoke_tumbler_shake_pre_services.txt 2>/tmp/azas_smoke_tumbler_shake_pre_services.err || true
-  if grep -qx "/motion/move_line" /tmp/azas_smoke_tumbler_shake_pre_services.txt; then
-    echo "[FAIL] refusing fake shake smoke: /motion/move_line already exists before fake_hardware_services.py starts"
-    echo "[FAIL] This smoke must only talk to the local fake/no-motion Doosan service."
-    exit 1
+  local prefix="${SERVICE_PREFIX#/}"
+  prefix="${prefix%/}"
+  local motion_service="/motion/move_line"
+  if [[ -n "${prefix}" ]]; then
+    motion_service="/${prefix}/motion/move_line"
   fi
+
+  for _ in {1..20}; do
+    ros2 service list --no-daemon >/tmp/azas_smoke_tumbler_shake_pre_services.txt 2>/tmp/azas_smoke_tumbler_shake_pre_services.err || true
+    if ! grep -qx "${motion_service}" /tmp/azas_smoke_tumbler_shake_pre_services.txt; then
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  echo "[FAIL] refusing fake shake smoke: ${motion_service} already exists before fake_hardware_services.py starts"
+  echo "[FAIL] This smoke must only talk to the local fake/no-motion Doosan service."
+  exit 1
 }
 
 cleanup() {

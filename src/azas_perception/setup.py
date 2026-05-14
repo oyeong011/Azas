@@ -16,6 +16,7 @@ setup(
     maintainer_email="team@example.com",
     description="Depth projection and tumbler pose skeleton for Azas.",
     license="MIT",
+    tests_require=["pytest"],
     entry_points={
         "console_scripts": [
             "yolo_tumbler_detector_node = azas_perception.yolo_tumbler_detector_node:main",

@@ -6,11 +6,14 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
+    # Defaults match the RealSense D435i namespace used by the current field
+    # docs. Override these launch args if the camera driver is launched with a
+    # different namespace; do not patch coordinates or frames in code.
     return LaunchDescription([
         DeclareLaunchArgument("model_path", default_value="/home/ssu/Downloads/best.pt"),
-        DeclareLaunchArgument("color_topic", default_value="/camera/color/image_raw"),
-        DeclareLaunchArgument("depth_topic", default_value="/camera/aligned_depth_to_color/image_raw"),
-        DeclareLaunchArgument("camera_info_topic", default_value="/camera/color/camera_info"),
+        DeclareLaunchArgument("color_topic", default_value="/camera/camera/color/image_raw"),
+        DeclareLaunchArgument("depth_topic", default_value="/camera/camera/aligned_depth_to_color/image_raw"),
+        DeclareLaunchArgument("camera_info_topic", default_value="/camera/camera/color/camera_info"),
         DeclareLaunchArgument("confidence_threshold", default_value="0.35"),
         DeclareLaunchArgument("target_class_names", default_value="cup,tumbler,bottle"),
         DeclareLaunchArgument("selection_policy", default_value="largest_bbox"),

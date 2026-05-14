@@ -4,9 +4,9 @@ set -euo pipefail
 # Quick no-motion stage report for deciding what to connect next.
 # This script does not start cameras, call gripper services, or command robot motion.
 
-COLOR_TOPIC="${COLOR_TOPIC:-/camera/color/image_raw}"
-DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/aligned_depth_to_color/image_raw}"
-CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/color/camera_info}"
+COLOR_TOPIC="${COLOR_TOPIC:-/camera/camera/color/image_raw}"
+DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/camera/aligned_depth_to_color/image_raw}"
+CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/camera/color/camera_info}"
 CUP_DETECTION_TOPIC="${CUP_DETECTION_TOPIC:-/azas/cup_detection}"
 TUMBLER_POSE_TOPIC="${TUMBLER_POSE_TOPIC:-/jarvis/tumbler_dispenser/tumbler_pose}"
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"

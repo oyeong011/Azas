@@ -12,9 +12,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHECKS_DIR="${ROOT_DIR}/tools/checks"
 SELECTED_DISPENSER_ID="${SELECTED_DISPENSER_ID:-2}"
 RG2_IP="${RG2_IP:-192.168.1.1}"
-COLOR_TOPIC="${COLOR_TOPIC:-/camera/color/image_raw}"
-DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/aligned_depth_to_color/image_raw}"
-CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/color/camera_info}"
+COLOR_TOPIC="${COLOR_TOPIC:-/camera/camera/color/image_raw}"
+DEPTH_TOPIC="${DEPTH_TOPIC:-/camera/camera/aligned_depth_to_color/image_raw}"
+CAMERA_INFO_TOPIC="${CAMERA_INFO_TOPIC:-/camera/camera/color/camera_info}"
+PLACE_MOUTH_UNDER_OUTLET="${PLACE_MOUTH_UNDER_OUTLET:-true}"
+OUTLET_MOUTH_CLEARANCE="${OUTLET_MOUTH_CLEARANCE:-0.0}"
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"
 LIVE_GATE_STAMP="${LIVE_GATE_STAMP:-/tmp/azas_live_hardware_gates_passed}"
 LIVE_GATE_MAX_AGE_SEC="${LIVE_GATE_MAX_AGE_SEC:-600}"
@@ -92,6 +94,7 @@ require_real_motion_gates() {
   echo "[Azas] Continue only if ALL are true:"
   echo "  - /azas/cup_detection status is detected:cup or detected:lid"
   echo "  - /jarvis/tumbler_dispenser/tumbler_pose is from real camera detection, not demo"
+  echo "  - cup mouth alignment is intended: place_mouth_under_outlet=${PLACE_MOUTH_UNDER_OUTLET}, clearance=${OUTLET_MOUTH_CLEARANCE}m"
   echo "  - e-stop is reachable"
   echo "  - no person is inside the robot workspace"
   echo "  - cup, dispenser, table, cable, camera mount, and lifted shake volume were checked"
@@ -146,6 +149,8 @@ ros2 launch azas_bringup robot_connection_control.launch.py \
   color_topic:="${COLOR_TOPIC}" \
   depth_topic:="${DEPTH_TOPIC}" \
   camera_info_topic:="${CAMERA_INFO_TOPIC}" \
+  place_mouth_under_outlet:="${PLACE_MOUTH_UNDER_OUTLET}" \
+  outlet_mouth_clearance:="${OUTLET_MOUTH_CLEARANCE}" \
   service_prefix:="${SERVICE_PREFIX}" \
   execution_stage:=pre_place \
   enable_hardware:=true \

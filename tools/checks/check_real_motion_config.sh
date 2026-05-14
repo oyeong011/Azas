@@ -145,6 +145,11 @@ if [[ -s "${CALIBRATION_FILE}" ]]; then
   for dispenser_id in 1 2 3 4; do
     require_dispenser_mapping "${CALIBRATION_FILE}" "${dispenser_id}"
   done
+  if "${CHECKS_DIR:-/home/ssu/Azas/tools/checks}/check_measured_dispenser_geometry.py"; then
+    pass "measured dispenser geometry matches launch geometry"
+  else
+    fail "measured dispenser geometry does not match launch geometry"
+  fi
 fi
 
 if [[ -s "${SAFETY_FILE}" ]]; then

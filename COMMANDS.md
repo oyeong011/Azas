@@ -138,6 +138,25 @@ bash tools/run/field_no_motion_report.sh
 
 > **경고**: 실제 로봇 연결 전 반드시 아래 게이트를 통과해야 합니다.
 
+### 7-0. 실로봇 테스트 사다리
+
+한 번에 full cocktail을 실행하지 말고 아래 staged ladder로 실패 지점을 좁힙니다.
+
+```bash
+# 현재 차단 원인 설명
+STAGE=status tools/run/run_real_robot_test_ladder.sh
+
+# strict live gate까지 통과해야 실제 one-shot 테스트 가능
+STAGE=live-gate RUN_LID_STABILITY=true RUN_CUP_STABILITY=true \
+  tools/run/run_real_robot_test_ladder.sh
+
+# 마지막 supervised one-shot 실제 pick
+STAGE=pick-real CONFIRM=I_UNDERSTAND_THIS_WILL_MOVE_THE_ROBOT \
+  tools/run/run_real_robot_test_ladder.sh
+```
+
+상세 절차 → `docs/real_robot_test_ladder.md`
+
 ### 7-1. 로봇 네트워크 연결
 
 ```bash

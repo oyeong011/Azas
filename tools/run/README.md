@@ -15,7 +15,10 @@
 ① run_doosan_virtual_m0609.sh   # 가상 로봇 시작
 ② run_robot_dryrun.sh            # 드라이런 검증
 ③ check_live_hardware_gates.sh   # 게이트 통과 (checks/ 참고)
-④ run_robot_real.sh              # 실제 모션
+④ run_real_robot_test_ladder.sh  # observe/pick 단계형 실로봇 테스트
+⑤ run_connected_cup_pick_real.sh # live gate → dry pick → optional one-shot real pick
+⑥ run_robot_real.sh              # full real entrypoint
+⑦ run_cup_to_dispenser_press_real.sh # 컵을 출수구 아래에 놓고 디스펜서 프레스
 ```
 
 ## 스크립트 목록
@@ -26,6 +29,9 @@
 | `run_doosan_real_no_motion_m0609.sh` | 실제 Doosan 비-모션 연결 |
 | `run_robot_dryrun.sh` | 카메라 기반 드라이런 |
 | `run_robot_real.sh` | 실제 로봇 모션 실행 |
+| `run_connected_cup_pick_real.sh` | 로봇/카메라/RG2 연결 후 strict live gate, dry pick, optional one-shot real pick을 순서대로 실행 |
+| `run_cup_to_dispenser_press_real.sh` | 카메라 감지 → 사이드그랩 → 선택 출수구 아래 컵 배치 → 디스펜서 프레스 |
+| `run_real_robot_test_ladder.sh` | status → live-gate → dry-run → one-shot real pick 단계형 실로봇 테스트 |
 | `run_rule_based_dispenser_then_shake_sim.sh` | RViz에서 디스펜서 pre-place 이동 후 high-shake 시뮬레이션 |
 | `run_rule_based_dispenser_then_shake_real.sh` | 실제 로봇에서 디스펜서 pre-place 이동 후 high-shake 실행 |
 | `run_rule_based_shake_real.sh` | 실제 로봇 high-shake 단독 실행 |

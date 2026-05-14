@@ -16,6 +16,11 @@ source install/setup.bash
 
 전체 명령어 → **[COMMANDS.md](COMMANDS.md)** | 협업 가이드 → **[CONTRIBUTING.md](CONTRIBUTING.md)**
 
+처음 읽는 개발자는 먼저 **[docs/repository_file_map.md](docs/repository_file_map.md)** 를 보세요.
+각 폴더·파일의 역할, 운영/검증/실험 구분, 실제 로봇이 움직이지 않는 이유가 정리되어 있습니다.
+
+실제 로봇 테스트는 **[docs/real_robot_test_ladder.md](docs/real_robot_test_ladder.md)** 의 staged ladder를 따릅니다.
+
 ---
 
 ## 처음 온 팀원은 여기부터
@@ -122,6 +127,12 @@ STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed \
 
 # ④ 실제 로봇 모션
 bash tools/run/run_robot_real.sh
+
+# 컵 pick만 먼저 검증하는 단일 진입점
+bash tools/run/run_connected_cup_pick_real.sh
+
+# ⑤ 컵을 선택 출수구 아래에 놓고 디스펜서 프레스
+bash tools/run/run_cup_to_dispenser_press_real.sh
 ```
 
 ---
@@ -174,6 +185,7 @@ bash tools/checks/verify_control_readiness.sh  # 제어 준비도 종합
 bash tools/smoke/smoke_pick_and_align_no_motion.sh  # 액션 스모크
 bash tools/smoke/smoke_control_path.sh              # 제어 경로 엔드투엔드
 bash tools/smoke/smoke_fake_hardware_path.sh        # 가짜 하드웨어 스모크
+bash tools/smoke/smoke_cup_to_dispenser_press_path.sh # 가짜 디스펜서 프레스
 bash tools/smoke/smoke_cocktail_dryrun_sequence.sh  # 칵테일 시퀀스 스모크
 ```
 
