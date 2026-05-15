@@ -21,11 +21,15 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "yolo_tumbler_detector_node = azas_perception.yolo_tumbler_detector_node:main",
+            "bar_detect_test_legacy_node = azas_perception.bar_detect_test_legacy_node:main",
+            "bar_sort_legacy_node = azas_perception.bar_sort_legacy_node:main",
+            "click_pick_legacy_node = azas_perception.click_pick_legacy_node:main",
             "cup_detection_pose_bridge_node = azas_perception.cup_detection_pose_bridge_node:main",
             "gpd_grasp_adapter_node = azas_perception.gpd_grasp_adapter_node:main",
+            "realsense_data_collector_legacy_node = azas_perception.realsense_data_collector_legacy_node:main",
             "simulated_cup_detection_node = azas_perception.simulated_cup_detection_node:main",
             "yolo_cup_pick_legacy_node = azas_perception.yolo_cup_pick_legacy_node:main",
+            "yolo_tumbler_detector_node = azas_perception.yolo_tumbler_detector_node:main",
         ],
     },
 )
