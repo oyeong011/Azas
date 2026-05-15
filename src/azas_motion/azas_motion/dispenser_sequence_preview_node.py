@@ -70,6 +70,8 @@ class DispenserSequencePreviewNode(Node):
         self.declare_parameter("shake_lift_m", 0.055)
         self.declare_parameter("outlet_mouth_clearance_m", 0.0)
         self.declare_parameter("publish_rate_hz", 4.0)
+        self.declare_parameter("show_animated_cup", True)
+        self.declare_parameter("animated_cup_step_hold_ticks", 3)
         self.declare_parameter(
             "dispenser_bottle_positions",
             [
@@ -114,6 +116,8 @@ class DispenserSequencePreviewNode(Node):
             PoseStamped, "/azas/dispenser_sequence/target_pose", plan_qos
         )
         self.last_cup_pose: PoseStamped | None = None
+        self.preview_step_index = 0
+        self.preview_step_tick = 0
         self.create_subscription(
             PoseStamped,
             str(self.get_parameter("cup_pose_topic").value),
@@ -134,6 +138,8 @@ class DispenserSequencePreviewNode(Node):
             )
             return
         self.last_cup_pose = msg
+        self.preview_step_index = 0
+        self.preview_step_tick = 0
 
     def dispenser_layout(self) -> tuple[List[XYZ], List[XYZ], int]:
         bottles = triples(self.get_parameter("dispenser_bottle_positions").value)
@@ -165,29 +171,48 @@ class DispenserSequencePreviewNode(Node):
         target_base_z = outlet[2] - cup_height - outlet_clearance
         target_grasp = (outlet[0], outlet[1], target_base_z + grasp_height)
         pre_target = (target_grasp[0], target_grasp[1], target_grasp[2] + approach_height)
-        shake_z = max(pre_target[2] + shake_clearance, grasp[2] + 0.24)
-        lift = (grasp[0], grasp[1], shake_z)
-        shake_left = (lift[0], lift[1] + shake_swing, lift[2] + shake_lift)
-        shake_right = (lift[0], lift[1] - shake_swing, lift[2] - shake_lift * 0.45)
-        shake_forward = (lift[0] + 0.045, lift[1], lift[2] + shake_lift * 0.75)
-        shake_back = (lift[0] - 0.035, lift[1], lift[2] - shake_lift * 0.35)
-        front_lane = (outlet[0] - 0.12, grasp[1], lift[2])
-        front_of_outlet = (outlet[0] - 0.12, outlet[1], lift[2])
+        travel_z = max(pre_target[2] + shake_clearance, grasp[2] + 0.20)
+        lift = (grasp[0], grasp[1], travel_z)
+        front_lane = (outlet[0] - 0.12, grasp[1], travel_z)
+        front_of_outlet = (outlet[0] - 0.12, outlet[1], travel_z)
+        retreat = (pre_target[0], pre_target[1], pre_target[2] + approach_height)
+        shake_center = (front_of_outlet[0], front_of_outlet[1], travel_z + shake_lift)
+        shake_left = (
+            shake_center[0],
+            shake_center[1] + shake_swing,
+            shake_center[2] + shake_lift,
+        )
+        shake_right = (
+            shake_center[0],
+            shake_center[1] - shake_swing,
+            shake_center[2] - shake_lift * 0.45,
+        )
+        shake_forward = (
+            shake_center[0] + 0.045,
+            shake_center[1],
+            shake_center[2] + shake_lift * 0.75,
+        )
+        shake_back = (
+            shake_center[0] - 0.035,
+            shake_center[1],
+            shake_center[2] - shake_lift * 0.35,
+        )
 
         return [
             SequenceStep("1 side_pre_grasp", side_pre_grasp),
             SequenceStep("2 side_grasp", grasp),
-            SequenceStep("3 lift_high", lift),
-            SequenceStep("4 shake_high_left", shake_left),
-            SequenceStep("5 shake_high_right", shake_right),
-            SequenceStep("6 shake_high_forward", shake_forward),
-            SequenceStep("7 shake_high_back", shake_back),
-            SequenceStep("8 shake_recenter", lift),
-            SequenceStep("9 move_to_front_lane", front_lane),
-            SequenceStep("10 front_of_dispenser", front_of_outlet),
-            SequenceStep("11 mouth_under_outlet", pre_target),
-            SequenceStep("12 dispense_alignment", target_grasp),
-            SequenceStep("13 retreat", pre_target),
+            SequenceStep("3 lift_cup", lift),
+            SequenceStep("4 carry_to_front_lane", front_lane),
+            SequenceStep("5 front_of_dispenser", front_of_outlet),
+            SequenceStep("6 mouth_under_outlet", pre_target),
+            SequenceStep("7 dispense_alignment", target_grasp),
+            SequenceStep("8 retreat_with_cup", retreat),
+            SequenceStep("9 shake_center", shake_center),
+            SequenceStep("10 shake_left", shake_left),
+            SequenceStep("11 shake_right", shake_right),
+            SequenceStep("12 shake_forward", shake_forward),
+            SequenceStep("13 shake_back", shake_back),
+            SequenceStep("14 shake_recenter", shake_center),
         ]
 
     def publish_preview(self) -> None:
@@ -208,6 +233,18 @@ class DispenserSequencePreviewNode(Node):
         self.path_pub.publish(path)
         self.target_pub.publish(path.poses[-2])
         self.marker_pub.publish(self.make_markers(steps, now, frame_id))
+        self.advance_animation(len(steps))
+
+    def advance_animation(self, step_count: int) -> None:
+        if step_count <= 0:
+            self.preview_step_index = 0
+            self.preview_step_tick = 0
+            return
+        hold_ticks = max(int(self.get_parameter("animated_cup_step_hold_ticks").value), 1)
+        self.preview_step_tick += 1
+        if self.preview_step_tick >= hold_ticks:
+            self.preview_step_tick = 0
+            self.preview_step_index = (self.preview_step_index + 1) % step_count
 
     def marker(
         self,
@@ -233,6 +270,8 @@ class DispenserSequencePreviewNode(Node):
     def make_markers(self, steps: Sequence[SequenceStep], stamp, frame_id: str) -> MarkerArray:
         markers: List[Marker] = []
         bottles, outlets, selected_index = self.dispenser_layout()
+        if bool(self.get_parameter("show_animated_cup").value):
+            markers.extend(self.make_cup_markers(steps))
         for index, bottle in enumerate(bottles, start=1):
             selected = index - 1 == selected_index
             markers.append(
@@ -308,13 +347,61 @@ class DispenserSequencePreviewNode(Node):
             Vector3(x=0.0, y=0.0, z=0.033),
             (0.2, 1.0, 0.35, 1.0),
         )
-        status.text = "Azas RViz preview: side grasp -> high shake above obstacles -> dispenser alignment"
+        status.text = "Azas RViz preview: pick cup -> carry to dispenser -> shake"
         markers.append(status)
 
         for marker in markers:
             marker.header.stamp = stamp
             marker.header.frame_id = frame_id
         return MarkerArray(markers=markers)
+
+    def make_cup_markers(self, steps: Sequence[SequenceStep]) -> List[Marker]:
+        if self.last_cup_pose is None or not steps:
+            return []
+        cup_height = float(self.get_parameter("cup_height_m").value)
+        grasp_height = float(self.get_parameter("grasp_height_m").value)
+        original = self.last_cup_pose.pose.position
+        original_base = (float(original.x), float(original.y), float(original.z))
+        active_index = min(self.preview_step_index, len(steps) - 1)
+        active_step = steps[active_index]
+
+        if active_index == 0:
+            base = original_base
+        else:
+            base = (
+                active_step.xyz[0],
+                active_step.xyz[1],
+                active_step.xyz[2] - grasp_height,
+            )
+        body_center = (base[0], base[1], base[2] + cup_height * 0.5)
+        mouth_center = (base[0], base[1], base[2] + cup_height)
+
+        body = self.marker(
+            500,
+            Marker.CYLINDER,
+            "animated_cup_body",
+            body_center,
+            Vector3(x=0.075, y=0.075, z=cup_height),
+            (0.1, 0.85, 1.0, 0.72),
+        )
+        mouth = self.marker(
+            501,
+            Marker.CYLINDER,
+            "animated_cup_mouth",
+            mouth_center,
+            Vector3(x=0.092, y=0.092, z=0.008),
+            (1.0, 1.0, 1.0, 0.95),
+        )
+        label = self.marker(
+            502,
+            Marker.TEXT_VIEW_FACING,
+            "animated_cup_label",
+            (mouth_center[0], mouth_center[1], mouth_center[2] + 0.055),
+            Vector3(x=0.0, y=0.0, z=0.034),
+            (0.1, 0.85, 1.0, 1.0),
+        )
+        label.text = f"cup moving: {active_step.label}"
+        return [body, mouth, label]
 
 
 def main(args=None) -> None:

@@ -61,7 +61,7 @@ Then verify:
 
 Goal: prove the live camera can produce color, aligned depth, `CameraInfo`, YOLO detection, and a camera-frame 3D point for the actual tumbler/lid.
 
-Stop condition: `/azas/cup_detection` reports `detected:*`, depth projection passes with a known-distance target, and `/jarvis/tumbler_dispenser/tumbler_pose` comes from live camera detection.
+Stop condition: `/azas/cup_detection` reports a cup status starting with `detected:upright`, depth projection passes with a known-distance target, and `/jarvis/tumbler_dispenser/tumbler_pose` comes from live camera detection in `base_link`.
 
 Current live camera evidence is recorded in `docs/camera_connection_verification_2026-05-11.md`. Camera topics and depth projection pass, but stable live cup/lid detection is still missing.
 

@@ -38,10 +38,12 @@
 
 1. 실제 로봇을 움직일 수 있는 명령은 이름과 문서에서 위험도를 명확히 표시합니다.
 2. `checks/`는 기본적으로 비-모션이어야 합니다.
-3. `smoke/`는 가짜 하드웨어 또는 no-motion 경로만 사용해야 합니다.
-4. `run/`은 실행 진입점으로 유지하되, 오케스트레이션 성격이 강한 스크립트는 README에서 명확히 설명합니다.
-5. 절대경로를 포함한 스크립트를 이동할 때는 `COMMANDS.md`, `README.md`, `docs/`, 다른 shell wrapper를 함께 갱신합니다.
-6. 신규 `.sh`는 대표 명령으로 공개할 가치가 있을 때만 추가합니다. 단순 Python wrapper는 가능한 한 만들지 않습니다.
+3. `checks/`에서 RG2/Doosan 서비스는 존재와 타입까지만 확인하고 open/close 또는 motion command를 보내지 않습니다.
+4. `smoke/`는 가짜 하드웨어 또는 no-motion 경로만 사용해야 합니다.
+5. motion-facing 컵 pose 예시는 `detected:upright` status를 사용합니다. `detected:lid`는 lid evidence이고 cup pose 계약이 아닙니다.
+6. `run/`은 실행 진입점으로 유지하되, 오케스트레이션 성격이 강한 스크립트는 README에서 명확히 설명합니다.
+7. 절대경로를 포함한 스크립트를 이동할 때는 `COMMANDS.md`, `README.md`, `docs/`, 다른 shell wrapper를 함께 갱신합니다.
+8. 신규 `.sh`는 대표 명령으로 공개할 가치가 있을 때만 추가합니다. 단순 Python wrapper는 가능한 한 만들지 않습니다.
 
 ## 현재 2차 정리 후보
 

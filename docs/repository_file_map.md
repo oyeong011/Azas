@@ -22,7 +22,7 @@ Updated: 2026-05-14
 | `PickAndAlign` 서버가 `execute_motion`을 실제 실행에 쓰지 않음 | `src/azas_task_manager/azas_task_manager/pick_and_align_action_server.py` | action은 no-motion 진단용이다. 실제 Doosan trajectory 실행이 없다. |
 | `calibration.yaml`과 `safety.yaml`에 `null`/`확인 필요`가 남아 있음 | `src/azas_bringup/config/calibration.yaml`, `src/azas_bringup/config/safety.yaml` | 실측 전에는 real-motion config gate가 실패해야 정상이다. |
 | 그리퍼 서비스 계약이 둘로 나뉨 | `/azas/gripper/open_close`, `/jarvis/rg2/open`, `/jarvis/rg2/close` | placeholder와 field/fake 경로가 다르다. real RG2 adapter 정리가 필요하다. |
-| pose bridge/TF가 없으면 컵 포즈가 motion-facing topic으로 안 감 | `cup_detection_pose_bridge_node.py` | 카메라 검출만으로는 부족하고 base_link TF가 필요하다. |
+| upright pose bridge/TF가 없으면 컵 포즈가 motion-facing topic으로 안 감 | `cup_detection_pose_bridge_node.py` | `detected:upright`와 base_link TF가 모두 필요하다. `detected:lid`나 `rejected:*`는 컵 pose가 아니다. |
 | run/check/smoke가 대부분 안전하게 fail-closed 설계 | `tools/checks`, `tools/smoke`, `tools/run/run_robot_real.sh` | 로봇이 안 움직이는 것은 많은 경우 버그가 아니라 안전 차단이다. |
 
 ## 최상위 파일
@@ -55,9 +55,9 @@ Updated: 2026-05-14
 
 | 파일 | 상태 | 설명 |
 | --- | --- | --- |
-| `azas_perception/yolo_tumbler_detector_node.py` | 내부 구현 | RealSense RGB-D와 YOLO로 컵 후보를 찾고 `/azas/cup_detection` 발행. bbox 비율로 upright만 통과. |
+| `azas_perception/yolo_tumbler_detector_node.py` | 내부 구현 | RealSense RGB-D와 YOLO로 컵 후보를 찾고 `/azas/cup_detection` 발행. bbox 비율로 upright만 `detected:upright ...` status를 받는다. |
 | `azas_perception/depth_projection.py` | 내부 구현 | depth pixel과 CameraInfo intrinsics를 camera-frame 3D 좌표로 변환하는 순수 함수. |
-| `azas_perception/cup_detection_pose_bridge_node.py` | 내부 구현 | `/azas/cup_detection`을 TF2로 `base_link` 기준 `/jarvis/tumbler_dispenser/tumbler_pose`로 변환. TF 실패 시 publish 안 함. |
+| `azas_perception/cup_detection_pose_bridge_node.py` | 내부 구현 | `detected:upright`인 `/azas/cup_detection`만 TF2로 `base_link` 기준 `/jarvis/tumbler_dispenser/tumbler_pose`로 변환. TF 실패 또는 non-upright status면 publish 안 함. |
 | `azas_perception/simulated_cup_detection_node.py` | 검증 | 하드웨어 없이 deterministic `CupDetection`을 발행하는 smoke용 노드. |
 | `azas_perception/gpd_grasp_adapter_node.py` | 실험 | 외부 grasp detector 결과를 Azas 계약으로 맞추기 위한 adapter 후보. |
 | `test/test_depth_and_detection_logic.py` | 검증 | depth projection, bbox orientation, detection selection policy 회귀 테스트. |
@@ -161,7 +161,7 @@ Updated: 2026-05-14
 | `check_connection_stage.sh` | 검증 | 현재 ROS graph/config 상태를 보고 다음 연결 단계 제안. |
 | `check_depth_projection_sample.py`, `.sh` | 검증 | live depth와 CameraInfo에서 sample projection 확인. known-distance 검증은 별도 필요. |
 | `check_detection_stability.py`, `.sh` | 검증 | `/azas/cup_detection` 안정성 sampling. |
-| `check_robot_detection.sh` | 검증 | cup detection topic quick check. |
+| `check_robot_detection.sh` | 검증 | cup detection topic quick check. motion-facing 컵은 `detected:upright` status가 필요함을 안내한다. |
 | `check_tf_pipeline.sh` | 검증 | TF pipeline 확인. placeholder TF는 real motion 금지. |
 | `check_hand_eye_readiness.sh` | 검증 | camera topics, CameraInfo frame, base-camera TF evidence 확인. |
 | `robot_connection_acceptance.sh` | 검증 | strict field no-motion report와 hand-eye readiness를 묶은 acceptance helper. |
@@ -185,7 +185,7 @@ Updated: 2026-05-14
 | `smoke_fake_hardware_path.sh` | 검증 | fake hardware service까지 포함한 smoke. |
 | `smoke_cup_to_dispenser_press_path.sh` | 검증 | fake MoveLine 서비스로 디스펜서 press stage가 선택 출수구 좌표를 쓰는지 확인. |
 | `smoke_pick_and_align_no_motion.sh` | 검증 | fake base_link pose로 `/azas/pick_and_align` no-motion action 검증. |
-| `smoke_cocktail_dryrun_sequence.py`, `.sh` | 검증 | full cocktail dry-run sequence 검증. |
+| `smoke_cocktail_dryrun_sequence.py`, `.sh` | 검증 | full cocktail dry-run sequence 검증. symbolic cup/lid presence만 주입하며 motion-facing `detected:upright` pose publish나 RG2 호출은 하지 않는다. |
 | `smoke_voice_cocktail_no_hardware.py`, `.sh` | 검증 | voice/recipe no-hardware smoke. |
 | `smoke_tumbler_shake_sequence.sh` | 검증 | fake high-shake sequence와 bad-case failure 검증. |
 | `smoke_real_motion_entrypoint_gates.sh` | 검증/차단 | real entrypoint가 missing/non-strict/placeholder config에서 거부하는지 테스트. |

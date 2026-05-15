@@ -106,7 +106,7 @@ STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed /home/ssu/Azas/tools
 Acceptance:
 
 - camera topics pass,
-- `detected:*` sample exists,
+- `detected:upright` cup sample exists,
 - Doosan `move_line` and `move_joint` services exist,
 - RG2 open/close services exist,
 - measured calibration/safety config replaces placeholders.

@@ -85,6 +85,10 @@ def main() -> int:
         rclpy.spin_once(node, timeout_sec=0.1)
 
     for _ in range(5):
+        # The cocktail dry-run planner consumes symbolic cup/lid presence only.
+        # Motion-facing cup poses are produced by the perception bridge from
+        # live statuses that start with "detected:upright"; this smoke does not
+        # publish /jarvis/tumbler_dispenser/tumbler_pose or call any gripper.
         node.publish_detection("detected:cup bbox=100x100 depth_raw=300.0")
         node.publish_detection("detected:lid bbox=80x80 depth_raw=260.0")
         rclpy.spin_once(node, timeout_sec=0.1)

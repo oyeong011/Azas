@@ -40,7 +40,7 @@ ros2 run azas_task_manager pick_and_align_action_server \
   -p side_grasp_qw:=1.0 \
   -p tumbler_pose_topic:="${POSE_TOPIC}" \
   -p pose_wait_timeout_sec:=3.0 \
-  -p call_fake_gripper_services:=false \
+  -p enable_gripper_service_calls:=false \
   >"${SERVER_LOG}" 2>&1 &
 SERVER_PID=$!
 
@@ -71,6 +71,7 @@ for expected in \
   "COMPUTE_SIDE_GRASP" \
   "SIDE_APPROACH_NO_MOTION" \
   "SIDE_PICK_NO_MOTION" \
+  "GRIPPER_CLOSE_NO_MOTION" \
   "SIDE_LIFT_NO_MOTION" \
   "DONE_NO_MOTION" \
   "NO_MOTION_SIDE_GRASP_OK"; do
@@ -83,5 +84,11 @@ for expected in \
     exit 1
   fi
 done
+
+if grep -q "Calling RG2 gripper" "${SERVER_LOG}"; then
+  echo "[FAIL] PickAndAlign no-motion attempted an RG2 service call"
+  sed -n '1,220p' "${SERVER_LOG}" 2>/dev/null || true
+  exit 1
+fi
 
 echo "[OK] PickAndAlign side-grasp no-motion action reached DONE_NO_MOTION"

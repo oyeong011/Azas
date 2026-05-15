@@ -2,18 +2,66 @@
 
 이 문서는 협업자가 자기 담당 영역과 건드리면 안 되는 경계를 빠르게 찾기 위한 지도입니다.
 
+## 두 개의 워크스페이스 구조
+
+Azas 프로젝트는 두 개의 ROS 2 워크스페이스를 함께 사용합니다.
+
+```
+/home/ssu/Azas/          ← Azas 메인 패키지 (이 레포)
+  src/azas_*/            ← 비전, 모션, 태스크, 음성 등
+
+/home/ssu/ros2_ws/       ← 외부 패키지 (별도 레포)
+  src/Azas/jarvis/       ← 실제 RG2 그리퍼 + 디스펜서 제어
+  src/doosan-robot2/     ← 두산 M0609 ROS 2 드라이버
+```
+
+매 터미널에서 두 워크스페이스를 모두 소싱해야 합니다:
+
+```bash
+source /opt/ros/humble/setup.bash
+source /home/ssu/Azas/install/setup.bash
+source /home/ssu/ros2_ws/install/setup.bash
+```
+
 ## 패키지별 책임
 
-| 패키지 | 담당 영역 | 주요 파일/경계 |
-|--------|----------|----------------|
-| `azas_interfaces` | 공용 메시지, 서비스, 액션 계약 | `msg/`, `srv/`, `action/PickAndAlign.action` |
-| `azas_voice` | STT 텍스트를 상징적 레시피 결정으로 변환 | `command_parser.py`, `recipe_catalog.py`, `recipe_mapper_node.py` |
-| `azas_task_manager` | 레시피 결정과 컵 탐지를 태스크 단계로 조합 | `cocktail_dryrun_sequence_node.py`, `cocktail_workflow_plan.py`, `pick_and_align_action_server.py` |
-| `azas_perception` | 컵 탐지, 깊이 투영, base_link 기준 컵 자세 발행 | `yolo_tumbler_detector_node.py`, `cup_detection_pose_bridge_node.py` |
-| `azas_motion` | 정렬/픽 계획 계산과 모션 실행 경계 | `alignment.py`, `alignment_executor_node.py` |
-| `azas_gripper` | RG2 그리퍼 서비스 경계 | `rg2_gripper_node.py` |
-| `azas_calibration` | 실측 캘리브레이션 값 로드/저장 경계 | `calibration_loader_node.py`, `calibration.yaml` |
-| `azas_bringup` | 런치 파일과 시스템 설정 조합 | `launch/`, `config/` |
+### Azas 레포 (`/home/ssu/Azas/src/`)
+
+| 패키지 | 담당 영역 | 주요 파일/경계 | 상태 |
+|--------|----------|----------------|------|
+| `azas_interfaces` | 공용 메시지, 서비스, 액션 계약 | `msg/`, `srv/`, `action/PickAndAlign.action` | 구현됨 |
+| `azas_voice` | STT 텍스트를 상징적 레시피 결정으로 변환 | `command_parser.py`, `recipe_catalog.py`, `recipe_mapper_node.py` | 구현됨 |
+| `azas_task_manager` | 레시피 결정과 컵 탐지를 태스크 단계로 조합 | `cocktail_dryrun_sequence_node.py`, `pick_and_align_action_server.py` | 구현됨 (no-motion) |
+| `azas_perception` | 직립 컵 탐지, 깊이 투영, base_link 기준 컵 자세 발행 | `yolo_tumbler_detector_node.py`, `cup_detection_pose_bridge_node.py` | 구현됨 (`detected:upright`만 pose 발행) |
+| `azas_motion` | 그라스프 계획 계산 | `alignment.py`, `alignment_executor_node.py` | 계획만, 실행 없음 |
+| `azas_gripper` | **내부 placeholder** — 실제 RG2 아님 | `rg2_gripper_node.py` | **미연결** (아래 jarvis 사용) |
+| `azas_calibration` | 실측 캘리브레이션 값 로드/저장 경계 | `calibration_loader_node.py`, `calibration.yaml` | 실측 대기 중 |
+| `azas_bringup` | 런치 파일과 시스템 설정 조합 | `launch/`, `config/` | 구현됨 |
+
+### ros2_ws (`/home/ssu/ros2_ws/src/`)
+
+| 패키지 | 담당 영역 | 서비스/토픽 | 상태 |
+|--------|----------|------------|------|
+| `jarvis` (rg2_trigger_node) | **실제 RG2 그리퍼** Modbus 제어 | `/jarvis/rg2/open`, `/jarvis/rg2/close` | 구현됨, IP 연결 필요 |
+| `jarvis` (tumbler_floor_place_node) | 컵을 디스펜서 아래로 이동 | — | 구현됨, 캘리브레이션 필요 |
+| `dsr_bringup2` | 두산 M0609 MoveIt 드라이버 | `/dsr01/motion/move_line` 등 | 구현됨, 로봇 IP 필요 |
+
+## RG2 실제 연결 경로
+
+```
+supervised real-runner scripts / jarvis floor-place path
+  ↓  explicit real-motion confirmation + strict gates 통과 시
+/jarvis/rg2/open   ← jarvis/rg2_trigger_node  ← Modbus 192.168.1.1
+/jarvis/rg2/close
+```
+
+`azas_gripper/rg2_gripper_node`는 내부 플레이스홀더로, 실제 RG2를 제어하지 않습니다.
+`pick_and_align_action_server`의 `execution_mode=no_motion`은 `enable_gripper_service_calls=true`가 들어와도 실제 RG2 서비스를 호출하지 않고 실패해야 합니다.
+no-motion 스모크와 readiness/check 명령은 RG2 서비스의 존재나 타입을 볼 수는 있지만, `/jarvis/rg2/open` 또는 `/jarvis/rg2/close`를 호출했다는 뜻이 아니며 실제 그리퍼 동작 증거도 아닙니다.
+
+## 컵 탐지 계약
+
+모션으로 이어지는 컵 포즈는 `/azas/cup_detection`의 status가 `detected:upright`로 시작할 때만 `/jarvis/tumbler_dispenser/tumbler_pose`로 변환됩니다. `detected:lid`, `rejected:*`, 애매한 탐지는 perception 상태 확인에는 쓸 수 있지만 컵 pose 계약을 만족하지 않습니다.
 
 ## 룰베이스 담당 범위
 

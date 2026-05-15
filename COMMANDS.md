@@ -115,6 +115,8 @@ ros2 run tf2_ros tf2_echo base_link camera_color_optical_frame
 bash tools/checks/check_robot_detection.sh
 ```
 
+모션으로 이어지는 컵 탐지는 `/azas/cup_detection` status가 `detected:upright`로 시작해야 합니다. `detected:lid`는 lid 확인용이며 `/jarvis/tumbler_dispenser/tumbler_pose`의 컵 pose 계약을 만족하지 않습니다.
+
 ---
 
 ## 6. 드라이런 (Dry-run)
@@ -186,6 +188,8 @@ source /home/ssu/ros2_ws/install/setup.bash
 ros2 launch jarvis rg2_trigger.launch.py ip:=192.168.1.1
 ```
 
+비-모션 check/smoke 명령은 RG2 서비스의 존재와 타입을 확인할 수 있지만, 실제 `/jarvis/rg2/open` 또는 `/jarvis/rg2/close` 동작 검증이 아닙니다. 실제 그리퍼 actuation 증거는 별도 현장 절차로 기록해야 합니다.
+
 ### 7-4. 하드웨어 게이트 통과 확인
 
 ```bash
@@ -206,6 +210,8 @@ bash tools/run/run_robot_real.sh
 # 연결 로봇 제어 (통합)
 bash tools/run/run_connected_robot_control.sh
 ```
+
+`run_robot_real.sh`는 strict gate stamp와 측정 config를 다시 확인한 뒤에도, operator 확인 전 `detected:upright` cup pose와 실제 camera-derived tumbler pose를 요구합니다.
 
 ## 8. 스모크 테스트
 
@@ -305,7 +311,7 @@ cat docs/recovery_after_poweroff.md
    STRICT=true GATE_STAMP=/tmp/azas_live_hardware_gates_passed \
      bash tools/checks/check_live_hardware_gates.sh
 
-⑤ 실제 로봇 모션 실행
+⑤ `detected:upright` 컵 pose 확인 후 실제 로봇 모션 실행
    bash tools/run/run_robot_real.sh
 ```
 

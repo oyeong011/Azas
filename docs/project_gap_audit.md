@@ -42,16 +42,21 @@ This audit records developer- and project-level gaps that can be improved withou
 2. Gripper service boundaries remain split.
    - `azas_gripper` provides `/azas/gripper/open_close` with `SetGripper`.
    - the task manager expects `/jarvis/rg2/open` and `/jarvis/rg2/close` with `Trigger` for the fake/field path.
+   - No-motion checks may verify service presence/type, but they must not be treated as real RG2 actuation evidence.
    - Add an explicit adapter or choose one service contract before motion execution work.
 
-3. Calibration persistence is intentionally not implemented.
+3. Motion-facing cup detection now requires the upright contract.
+   - `yolo_tumbler_detector_node` publishes `detected:upright ...` only after the bbox upright heuristic passes.
+   - `cup_detection_pose_bridge_node` refuses non-upright statuses and does not publish `/jarvis/tumbler_dispenser/tumbler_pose` for `detected:lid`, `rejected:*`, or ambiguous cup states.
+
+4. Calibration persistence is intentionally not implemented.
    - `calibration_loader_node` exposes service boundaries but does not save measured values.
    - Keep `calibration.yaml` fail-closed until real measured values exist.
 
-4. CI is now present, but only as a baseline.
+5. CI is now present, but only as a baseline.
    - `.github/workflows/ci.yml` runs ROS 2 Humble dependency install, `colcon build`, `colcon test`, and `colcon test-result`.
    - It does not yet run hardware-free smoke scripts such as `verify_control_readiness.sh`; add those after making host-specific Doosan/Jarvis assumptions portable in CI.
 
-5. Measured calibration is still not auto-loaded into motion launch parameters.
+6. Measured calibration is still not auto-loaded into motion launch parameters.
    - Current behavior is intentionally conservative: real-motion config now fails if measured outlet/press geometry does not match the currently launched geometry.
    - Better long-term fix: generate the Jarvis launch parameters directly from `calibration.yaml` instead of comparing against fixed values.

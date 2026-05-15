@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # Quick check after run_robot_dryrun.sh is running.
-# Success condition: /azas/cup_detection shows status detected:cup or detected:lid.
+# Success condition for a motion-facing cup: /azas/cup_detection status starts
+# with detected:upright. Lid detections are perception evidence only and do not
+# satisfy the cup pose contract used by /jarvis/tumbler_dispenser/tumbler_pose.
 
 ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG:---no-daemon}"
 
@@ -40,4 +42,6 @@ timeout 10 "${echo_cmd[@]}" || {
 }
 
 echo
-echo "[Azas] If status is no_tumbler_detection, move the cup/lid to the camera center and rerun this script."
+echo "[Azas] Motion-facing cup contract: status must start with detected:upright."
+echo "[Azas] detected:lid is lid evidence only; it is not a valid cup pose for motion."
+echo "[Azas] If status is no_tumbler_detection or rejected:*, move an upright tumbler body to the camera center and rerun this script."

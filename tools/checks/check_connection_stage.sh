@@ -118,9 +118,11 @@ if [[ "${detection_ok}" == "true" ]]; then
   if timeout 5s "${detection_cmd[@]}" >/tmp/azas_stage_detection.out 2>/tmp/azas_stage_detection.err; then
     detection_status="$(sed -n 's/^[[:space:]]*status:[[:space:]]*//p' /tmp/azas_stage_detection.out | sed -n '1p')"
     detection_confidence="$(sed -n 's/^[[:space:]]*confidence:[[:space:]]*//p' /tmp/azas_stage_detection.out | sed -n '1p')"
-    if [[ "${detection_status}" == detected:* ]]; then
+    if [[ "${detection_status}" == detected:upright* ]]; then
       line "cup detection sample" "OK ${detection_status} confidence=${detection_confidence:-unknown}"
       detection_sample_ok=true
+    elif [[ "${detection_status}" == detected:* ]]; then
+      line "cup detection sample" "DETECTED BUT NOT MOTION-READY ${detection_status} confidence=${detection_confidence:-unknown}"
     else
       line "cup detection sample" "NOT DETECTED ${detection_status:-unknown} confidence=${detection_confidence:-unknown}"
     fi

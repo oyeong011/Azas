@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Real robot motion entrypoint. This is intentionally separate from dry-run.
-# Use only after /azas/cup_detection is detected:* and the operator has verified e-stop/workspace safety.
+# Use only after /azas/cup_detection is detected:upright and the operator has verified e-stop/workspace safety.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CHECKS_DIR="${ROOT_DIR}/tools/checks"
@@ -56,7 +56,8 @@ fi
 echo "[Azas] WARNING: this can move the real robot."
 echo "[Azas] Strict live gate stamp: ${LIVE_GATE_STAMP} age=${age_sec}s"
 echo "[Azas] Continue only if ALL are true:"
-echo "  - /azas/cup_detection status is detected:cup or detected:lid"
+echo "  - /azas/cup_detection status starts with detected:upright for the tumbler body"
+echo "  - detected:lid, rejected:*, or ambiguous detections are not accepted as cup poses"
 echo "  - /jarvis/tumbler_dispenser/tumbler_pose is from real camera detection, not demo"
 echo "  - cup mouth alignment is intended: place_mouth_under_outlet=${PLACE_MOUTH_UNDER_OUTLET}, clearance=${OUTLET_MOUTH_CLEARANCE}m"
 echo "  - e-stop is reachable"

@@ -17,6 +17,7 @@ TUMBLER_POSE_TOPIC="${TUMBLER_POSE_TOPIC:-/jarvis/tumbler_dispenser/tumbler_pose
 SERVICE_PREFIX="${SERVICE_PREFIX:-}"
 STRICT="${STRICT:-false}"
 GATE_STAMP="${GATE_STAMP:-/tmp/azas_live_hardware_gates_passed}"
+POSE_MAX_AGE_SEC="${POSE_MAX_AGE_SEC:-5}"
 REAL_MOTION_CONFIG_CHECK="${REAL_MOTION_CONFIG_CHECK:-/home/ssu/Azas/tools/checks/check_real_motion_config.sh}"
 ROS2_DAEMON_FLAG="${ROS2_DAEMON_FLAG:---no-daemon}"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-/tmp/azas_ros_logs}"
@@ -61,6 +62,73 @@ warn() {
 fail() {
   echo "[FAIL] $1"
   failures=$((failures + 1))
+}
+
+strict_fail_or_warn() {
+  local message="$1"
+  if [[ "${STRICT}" == "true" ]]; then
+    fail "${message}"
+  else
+    warn "${message}"
+  fi
+}
+
+validate_detection_sample() {
+  local file="$1"
+  local status
+  status="$(sed -n 's/^[[:space:]]*status:[[:space:]]*//p' "${file}" | sed -n '1p')"
+  status="${status%\"}"
+  status="${status#\"}"
+  status="${status%\'}"
+  status="${status#\'}"
+
+  if [[ "${status}" == detected:upright* ]]; then
+    pass "cup detection reports detected:upright"
+  else
+    strict_fail_or_warn "cup detection is not motion-ready upright status: ${status:-unknown}"
+    sed -n '1,80p' "${file}"
+  fi
+}
+
+validate_tumbler_pose_sample() {
+  local file="$1"
+  local frame_id
+  local sec
+  local nanosec
+  local now_sec
+  local age_sec
+  frame_id="$(sed -n 's/^[[:space:]]*frame_id:[[:space:]]*//p' "${file}" | sed -n '1p')"
+  frame_id="${frame_id%\"}"
+  frame_id="${frame_id#\"}"
+  frame_id="${frame_id%\'}"
+  frame_id="${frame_id#\'}"
+  sec="$(sed -n 's/^[[:space:]]*sec:[[:space:]]*//p' "${file}" | sed -n '1p')"
+  nanosec="$(sed -n 's/^[[:space:]]*nanosec:[[:space:]]*//p' "${file}" | sed -n '1p')"
+
+  if [[ "${frame_id}" == "base_link" ]]; then
+    pass "tumbler pose frame is base_link"
+  else
+    strict_fail_or_warn "tumbler pose frame is not base_link: ${frame_id:-unknown}"
+  fi
+
+  if ! [[ "${sec}" =~ ^[0-9]+$ && "${nanosec}" =~ ^[0-9]+$ ]]; then
+    strict_fail_or_warn "tumbler pose stamp is missing or invalid"
+    return
+  fi
+  if (( sec == 0 && nanosec == 0 )); then
+    strict_fail_or_warn "tumbler pose stamp is zero"
+    return
+  fi
+
+  now_sec="$(date +%s)"
+  age_sec=$((now_sec - sec))
+  if (( age_sec < 0 )); then
+    strict_fail_or_warn "tumbler pose stamp is in the future: age=${age_sec}s"
+  elif (( age_sec <= POSE_MAX_AGE_SEC )); then
+    pass "tumbler pose stamp fresh: age=${age_sec}s <= ${POSE_MAX_AGE_SEC}s"
+  else
+    strict_fail_or_warn "tumbler pose stamp stale: age=${age_sec}s > ${POSE_MAX_AGE_SEC}s"
+  fi
 }
 
 topic_exists() {
@@ -242,12 +310,7 @@ if [[ "${cup_detection_topic_ok}" == "true" ]]; then
     detection_cmd=(ros2 topic echo --once "${CUP_DETECTION_TOPIC}")
   fi
   if timeout 10s "${detection_cmd[@]}" >/tmp/azas_live_gate_detection.txt 2>/tmp/azas_live_gate_detection.err; then
-    if grep -q "status: detected" /tmp/azas_live_gate_detection.txt; then
-      pass "cup detection reports detected:*"
-    else
-      warn "cup detection sample received but status is not detected:*"
-      sed -n '1,80p' /tmp/azas_live_gate_detection.txt
-    fi
+    validate_detection_sample /tmp/azas_live_gate_detection.txt
   else
     warn "no cup detection sample within 10 seconds"
   fi
@@ -261,6 +324,7 @@ if [[ "${tumbler_pose_topic_ok}" == "true" ]]; then
   fi
   if timeout 10s "${pose_cmd[@]}" >/tmp/azas_live_gate_pose.txt 2>/tmp/azas_live_gate_pose.err; then
     pass "tumbler pose sample received"
+    validate_tumbler_pose_sample /tmp/azas_live_gate_pose.txt
   else
     warn "no tumbler pose sample within 10 seconds"
   fi

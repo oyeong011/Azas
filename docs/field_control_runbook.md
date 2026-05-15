@@ -146,8 +146,8 @@ Expected before real motion:
 
 - color/depth/camera_info topics are present,
 - `CameraInfo` sample contains `frame_id` and intrinsics,
-- `/azas/cup_detection` reports `detected:*`,
-- `/jarvis/tumbler_dispenser/tumbler_pose` publishes from real detection,
+- `/azas/cup_detection` reports a cup status starting with `detected:upright`,
+- `/jarvis/tumbler_dispenser/tumbler_pose` publishes a fresh `base_link` pose from real detection,
 - Doosan `move_line` and `move_joint` services exist with `dsr_msgs2/srv/MoveLine` and `dsr_msgs2/srv/MoveJoint` types,
 - RG2 open/close services exist with `std_srvs/srv/Trigger` type if gripper actuation is part of the run.
 - `tools/run/field_no_motion_report.sh` writes a field summary to `/tmp/azas_field_no_motion_report.txt`.

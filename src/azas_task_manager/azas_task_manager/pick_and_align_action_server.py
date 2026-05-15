@@ -16,7 +16,6 @@ from rclpy.action import ActionServer
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from std_srvs.srv import Trigger
 
 
 class PickAndAlignActionServer(Node):
@@ -35,9 +34,9 @@ class PickAndAlignActionServer(Node):
         self.declare_parameter("cup_detection_topic", "/azas/cup_detection")
         self.declare_parameter("require_upright_detection_status", True)
         self.declare_parameter("require_base_link_pose", True)
-        self.declare_parameter("fake_gripper_open_service", "/jarvis/rg2/open")
-        self.declare_parameter("fake_gripper_close_service", "/jarvis/rg2/close")
-        self.declare_parameter("call_fake_gripper_services", False)
+        self.declare_parameter("gripper_open_service", "/jarvis/rg2/open")
+        self.declare_parameter("gripper_close_service", "/jarvis/rg2/close")
+        self.declare_parameter("enable_gripper_service_calls", False)
         self.declare_parameter("grasp_mode", "side")
         self.declare_parameter("observe_pose_x", 0.35)
         self.declare_parameter("observe_pose_y", -0.25)
@@ -135,6 +134,15 @@ class PickAndAlignActionServer(Node):
         # candidate poses for diagnostics. It must remain side-effect free:
         # no Doosan trajectory execution and no real RG2 commands.
         feedback = PickAndAlign.Feedback()
+        if bool(self.get_parameter("enable_gripper_service_calls").value):
+            return self._fail_result(
+                goal_handle,
+                "REAL_GRIPPER_NOT_SUPPORTED_IN_NO_MOTION",
+                (
+                    "enable_gripper_service_calls=true is not allowed in execution_mode=no_motion; "
+                    "no gripper, Doosan, MoveIt, or real robot command was sent"
+                ),
+            )
         observe_detail = self._observe_pose_feedback_detail()
         if observe_detail.startswith("invalid"):
             return self._fail_result(
@@ -226,20 +234,10 @@ class PickAndAlignActionServer(Node):
             f"lift={self._pose_xyz(plan.lift_pose)}"
         )
 
-        if not self._publish_and_call_fake_gripper(goal_handle, feedback, "open"):
-            return self._fail_result(
-                goal_handle,
-                "FAKE_GRIPPER_OPEN_FAILED",
-                "Fake gripper open failed; no real robot motion was commanded",
-            )
+        self._publish_no_motion_gripper_feedback(goal_handle, feedback, "open")
 
         self._publish_feedback(goal_handle, feedback, "FAKE_APPROACH", self._pose_xyz(plan.approach_pose))
-        if not self._publish_and_call_fake_gripper(goal_handle, feedback, "close"):
-            return self._fail_result(
-                goal_handle,
-                "FAKE_GRIPPER_CLOSE_FAILED",
-                "Fake gripper close failed; no real robot motion was commanded",
-            )
+        self._publish_no_motion_gripper_feedback(goal_handle, feedback, "close")
 
         self._publish_feedback(goal_handle, feedback, "FAKE_LIFT", self._pose_xyz(plan.lift_pose))
         self._publish_feedback(goal_handle, feedback, "DONE_NO_MOTION", "No real robot motion was commanded")
@@ -295,12 +293,7 @@ class PickAndAlignActionServer(Node):
             "SIDE_PICK_NO_MOTION",
             f"{self._pose_xyz(plan.grasp_pose)} warning={plan.warning}",
         )
-        if not self._publish_and_call_fake_gripper(goal_handle, feedback, "close"):
-            return self._fail_result(
-                goal_handle,
-                "FAKE_GRIPPER_SERVICE_FAILED",
-                "Fake gripper close failed; no real robot motion was commanded",
-            )
+        self._publish_no_motion_gripper_feedback(goal_handle, feedback, "close")
 
         self._publish_feedback(
             goal_handle,
@@ -336,47 +329,13 @@ class PickAndAlignActionServer(Node):
             observed = self._latest_tumbler_pose
         return observed
 
-    def _call_fake_gripper_if_enabled(self, service_name: str, command: str) -> bool:
-        if not bool(self.get_parameter("call_fake_gripper_services").value):
-            self.get_logger().info(
-                f"Skipping fake gripper {command}; call_fake_gripper_services=false"
-            )
-            return True
-        self.get_logger().warn(
-            f"Calling fake gripper {command} service {service_name} with std_srvs/srv/Trigger; "
-            "does not command real RG2 and has no real-command fallback"
-        )
-        client = self.create_client(Trigger, service_name, callback_group=self._callback_group)
-        if not client.wait_for_service(timeout_sec=2.0):
-            self.get_logger().error(f"Fake gripper service unavailable: {service_name}")
-            return False
-        future = client.call_async(Trigger.Request())
-        deadline = time.monotonic() + 2.0
-        while not future.done() and time.monotonic() < deadline:
-            time.sleep(0.05)
-        if not future.done():
-            self.get_logger().error(f"Fake gripper service timed out: {service_name}")
-            return False
-        response = future.result()
-        if response is None or not response.success:
-            message = getattr(response, "message", "<no response>")
-            self.get_logger().error(f"Fake gripper service failed: {service_name}: {message}")
-            return False
-        self.get_logger().info(f"Fake gripper {command} accepted: {response.message}")
-        return True
-
-    def _publish_and_call_fake_gripper(self, goal_handle, feedback, command: str) -> bool:
-        state = f"FAKE_GRIPPER_{command.upper()}"
+    def _publish_no_motion_gripper_feedback(self, goal_handle, feedback, command: str) -> None:
+        state = f"GRIPPER_{command.upper()}_NO_MOTION"
         self._publish_feedback(
             goal_handle,
             feedback,
             state,
-            "No real RG2 command; optional fake Trigger only",
-        )
-        service_param = f"fake_gripper_{command}_service"
-        return self._call_fake_gripper_if_enabled(
-            str(self.get_parameter(service_param).value),
-            command,
+            f"Skipped gripper {command}; execution_mode=no_motion never calls RG2 services",
         )
 
     def _side_grasp_config(self) -> SideGraspConfig:

@@ -64,7 +64,10 @@ def generate_launch_description():
             DeclareLaunchArgument("planning_group", default_value="manipulator"),
             DeclareLaunchArgument("ee_link", default_value="tool0"),
             DeclareLaunchArgument("planning_timeout_sec", default_value="1.0"),
-            DeclareLaunchArgument("loop_preview", default_value="false"),
+            DeclareLaunchArgument("loop_preview", default_value="true"),
+            DeclareLaunchArgument("preview_publish_rate", default_value="30.0"),
+            DeclareLaunchArgument("preview_frames_per_step", default_value="45"),
+            DeclareLaunchArgument("preview_hold_frames", default_value="10"),
             DeclareLaunchArgument(
                 "rviz_config",
                 default_value=PathJoinSubstitution(
@@ -173,6 +176,15 @@ def generate_launch_description():
                         "ee_link": LaunchConfiguration("ee_link"),
                         "planning_timeout_sec": ParameterValue(
                             LaunchConfiguration("planning_timeout_sec"), value_type=float
+                        ),
+                        "publish_rate": ParameterValue(
+                            LaunchConfiguration("preview_publish_rate"), value_type=float
+                        ),
+                        "frames_per_step": ParameterValue(
+                            LaunchConfiguration("preview_frames_per_step"), value_type=int
+                        ),
+                        "hold_frames": ParameterValue(
+                            LaunchConfiguration("preview_hold_frames"), value_type=int
                         ),
                         "loop_preview": ParameterValue(
                             LaunchConfiguration("loop_preview"), value_type=bool
